@@ -19,10 +19,14 @@ const gateIv      = t => Math.max(2.2, 3.6 - t * 0.022);
 const baseDPS     = c => 6 + c * 2.4;
 
 // ---------- Armes ----------
+// bsp : vitesse projectile · aoe : {r: rayon, f: fraction des dégâts en zone}
+// streamsMax : nb max de tirs simultanés · flash : couleur de la gerbe de bouche
 const TIERS = [
-  { name: "FUSIL",   dmgMul: 1,   rate: 8,  bullet: 0 },
-  { name: "MINIGUN", dmgMul: 1.5, rate: 12, bullet: 1 },
-  { name: "BLASTER", dmgMul: 2.4, rate: 14, bullet: 2 },
+  { name: "FUSIL",   dmgMul: 1,   rate: 8,  bullet: 0, bsp: 95,  streamsMax: 8, flash: 0xffd84d },
+  { name: "MINIGUN", dmgMul: 1.5, rate: 13, bullet: 1, bsp: 105, streamsMax: 8, flash: 0xff9d2e },
+  { name: "BAZOOKA", dmgMul: 2.1, rate: 3,  bullet: 2, bsp: 55,  streamsMax: 2, flash: 0xff7a2e, aoe: { r: 3.6, f: 1 } },
+  { name: "LASER",   dmgMul: 3,   rate: 16, bullet: 3, bsp: 150, streamsMax: 6, flash: 0xff2e4d },
+  { name: "PLASMA",  dmgMul: 4.2, rate: 10, bullet: 4, bsp: 80,  streamsMax: 5, flash: 0x4dff7a, aoe: { r: 2.4, f: 0.5 } },
 ];
 
 // ---------- Scène ----------
@@ -251,10 +255,24 @@ function weaponParts(kind, cloth) {
     part(CYL, 0x2b2e33, [at[0], at[1], at[2] - 0.52], [Math.PI / 2, 0, 0], [0.16, 0.1, 0.16]),
     part(BOX, metal, [at[0], at[1] - 0.05, at[2] + 0.26], [0, 0, 0], [0.2, 0.24, 0.34]),
   ];
-  if (kind === "blaster") return [
-    part(BOX, 0x23303d, at, [0, 0, 0], [0.13, 0.17, 0.72]),
-    part(BOX, 0x37e6ff, [at[0], at[1] + 0.02, at[2] - 0.42], [0, 0, 0], [0.08, 0.08, 0.2]),
-    part(BOX, 0x37e6ff, [at[0], at[1] + 0.1, at[2] + 0.1], [0, 0, 0], [0.05, 0.05, 0.3]),
+  if (kind === "bazooka") return [
+    // tube épais porté sur l'épaule droite
+    part(CYL, 0x4a5240, [0.26, 1.52, 0.05], [Math.PI / 2, 0, 0], [0.14, 1.15, 0.14]),
+    part(CYL, 0x32382c, [0.26, 1.52, -0.55], [Math.PI / 2, 0, 0], [0.17, 0.14, 0.17]),
+    part(CYL, 0x32382c, [0.26, 1.52, 0.6], [Math.PI / 2, 0, 0], [0.16, 0.1, 0.16]),
+    part(BOX, 0x2b2e33, [0.26, 1.34, 0.12], [0, 0, 0], [0.07, 0.2, 0.1]),
+  ];
+  if (kind === "laser") return [
+    part(BOX, 0x24303f, at, [0, 0, 0], [0.11, 0.15, 0.7]),
+    part(BOX, 0xff2e4d, [at[0], at[1] + 0.09, at[2] - 0.1], [0, 0, 0], [0.05, 0.05, 0.42]),
+    part(CONE, 0xff2e4d, [at[0], at[1], at[2] - 0.46], [-Math.PI / 2, 0, 0], [0.06, 0.16, 0.06]),
+    part(BOX, cloth, [at[0], at[1] - 0.04, at[2] + 0.3], [0, 0, 0], [0.08, 0.14, 0.16]),
+  ];
+  if (kind === "plasma") return [
+    part(BOX, 0x2c3a2e, at, [0, 0, 0], [0.14, 0.18, 0.62]),
+    part(SPH, 0x4dff7a, [at[0] + 0.1, at[1] + 0.04, at[2] + 0.05], [0, 0, 0], [0.07, 0.07, 0.07]),
+    part(SPH, 0x4dff7a, [at[0] - 0.1, at[1] + 0.04, at[2] + 0.05], [0, 0, 0], [0.07, 0.07, 0.07]),
+    part(CYL, 0x4dff7a, [at[0], at[1], at[2] - 0.4], [Math.PI / 2, 0, 0], [0.05, 0.18, 0.05]),
   ];
   // fusil d'assaut : corps, canon, crosse, chargeur, viseur
   return [
@@ -390,7 +408,7 @@ const vcMat = () => new THREE.MeshLambertMaterial({ vertexColors: true });
 // Squad bleue (veste bleu vif, gilet kaki, casquette bleue — comme la vidéo)
 const ALLY_STYLE = { cloth: 0x2e8de0, vest: 0x8a7a55, cap: 0x1f6fd0 };
 const allyMeshes = TIERS.map((t, i) => makeInstanced(
-  soldierGeo({ ...ALLY_STYLE, weapon: ["rifle", "minigun", "blaster"][i] }), vcMat(), 80));
+  soldierGeo({ ...ALLY_STYLE, weapon: ["rifle", "minigun", "bazooka", "laser", "plasma"][i] }), vcMat(), 80));
 // Plastron d'armure (upgrade personnage, visible sur chaque soldat)
 const plateMesh = makeInstanced(
   part(BOX, 0xffffff, [0, 1.1, -0.26], [0.06, 0, 0], [0.5, 0.44, 0.08]), vcMat(), 80);
@@ -418,11 +436,27 @@ const legsMesh = makeInstanced(legGeo, new THREE.MeshLambertMaterial({ vertexCol
 legsMesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(800 * 3), 3);
 const LEG_ALLY = new THREE.Color(0x8f8060), LEG_FOE = new THREE.Color(0x4a4038);
 
-// Balles : un style par palier
+// Projectiles : un style par arme
+// Missile de bazooka : corps, ogive rouge, ailettes — pointe vers -z
+const rocketGeo = mergeGeometries([
+  part(CYL, 0x6e7560, [0, 0, 0.1], [Math.PI / 2, 0, 0], [0.12, 0.7, 0.12]),
+  part(CONE, 0xd23b2f, [0, 0, -0.4], [-Math.PI / 2, 0, 0], [0.12, 0.3, 0.12]),
+  part(BOX, 0x3a3f35, [0.16, 0, 0.38], [0, 0, 0], [0.18, 0.04, 0.2]),
+  part(BOX, 0x3a3f35, [-0.16, 0, 0.38], [0, 0, 0], [0.18, 0.04, 0.2]),
+  part(BOX, 0x3a3f35, [0, 0.16, 0.38], [0, 0, 0], [0.04, 0.18, 0.2]),
+  part(CYL, 0xff9d2e, [0, 0, 0.52], [Math.PI / 2, 0, 0], [0.07, 0.1, 0.07]),
+]);
 const bulletMeshes = [
-  makeInstanced(new THREE.SphereGeometry(0.22, 6, 6), new THREE.MeshBasicMaterial({ color: 0xffd84d }), 400),
-  makeInstanced(new THREE.CapsuleGeometry(0.1, 0.55, 2, 6).rotateX(Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xff9d2e }), 400),
-  makeInstanced(new THREE.CapsuleGeometry(0.11, 0.95, 2, 6).rotateX(Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x47e6ff }), 400),
+  // FUSIL : traceur jaune effilé
+  makeInstanced(new THREE.CapsuleGeometry(0.08, 0.5, 2, 6).rotateX(Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xffe24a }), 400),
+  // MINIGUN : traceur orange dense
+  makeInstanced(new THREE.CapsuleGeometry(0.11, 0.6, 2, 6).rotateX(Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xff9d2e }), 400),
+  // BAZOOKA : missile détaillé
+  makeInstanced(rocketGeo, new THREE.MeshBasicMaterial({ vertexColors: true }), 60),
+  // LASER : long faisceau rouge
+  makeInstanced(new THREE.CapsuleGeometry(0.06, 2.2, 2, 6).rotateX(Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xff2e4d }), 400),
+  // PLASMA : orbe verte (pulse au rendu)
+  makeInstanced(new THREE.SphereGeometry(0.3, 8, 8), new THREE.MeshBasicMaterial({ color: 0x4dff7a }), 400),
 ];
 
 const partMesh = makeInstanced(
@@ -582,7 +616,7 @@ const G = {
   squadX: 0, targetX: 0, stepPhase: 0, moveAmt: 0, stepDir: 1,
   tier: 0, dmgMul: 1, rateMul: 1, armor: 0,
   gates: [], foes: [], bullets: [], parts: [], texts: [], crates: [], walls: [], pickups: [],
-  gateTimer: 1.4, foeTimer: 2.0, hordeTimer: 8, monsterTimer: 22, crateTimer: 5, wallTimer: 16, pickupTimer: 14, volleyTimer: 0,
+  gateTimer: 1.4, foeTimer: 2.0, hordeTimer: 8, monsterTimer: 22, crateTimer: 5, wallTimer: 16, pickupTimer: 8, volleyTimer: 0,
   shake: 0, pairSeq: 0,
 };
 const dpsNow = () => baseDPS(G.count) * TIERS[G.tier].dmgMul * G.dmgMul;
@@ -823,7 +857,7 @@ function applyBonus(g) {
   if (g.op === "dmg") { G.dmgMul = Math.min(4, G.dmgMul * (1 + g.v / 100)); str = `DÉGÂTS +${g.v}%`; }
   if (g.op === "rate") { G.rateMul = Math.min(2.4, G.rateMul * (1 + g.v / 100)); str = `CADENCE +${g.v}%`; }
   if (g.op === "arm") { G.armor = Math.min(3, G.armor + 1); str = "ARMURE ↑"; }
-  if (g.op === "wpn") { G.tier = Math.min(2, G.tier + 1); str = TIERS[G.tier].name + " !"; sWeapon(); }
+  if (g.op === "wpn") { G.tier = Math.min(TIERS.length - 1, G.tier + 1); str = TIERS[G.tier].name + " !"; sWeapon(); }
   if (G.count > 999) { G.count = 999; str = "MAX"; }
   G.maxCount = Math.max(G.maxCount, G.count);
   ftext(str, isUpgrade(g) ? "#ffd84d" : good ? "#5fb6ff" : "#ff5f6b", good);
@@ -831,6 +865,27 @@ function applyBonus(g) {
   if (g.op !== "wpn") (good ? sGateGood : sGateBad)();
   refreshWeaponHud();
   if (G.count <= 0) gameOver();
+}
+
+// Explosion de zone (missiles, plasma) : dégâts aux ennemis dans le rayon
+let lastBlast = 0;
+function blast(x, z, dmg, radius, exclude = null) {
+  burst(x, 1.2, z, 0xff7a2e, 12, 11);
+  const n = performance.now();
+  if (n - lastBlast > 90) { lastBlast = n; tone(70, 0.18, "sawtooth", 0.3, 0, -30); }
+  for (let j = G.foes.length - 1; j >= 0; j--) {
+    const f = G.foes[j];
+    if (f === exclude) continue;
+    if (Math.abs(f.x - x) < radius && Math.abs(f.z - z) < radius) {
+      f.hp -= dmg;
+      if (f.hp <= 0) {
+        const T = FOE_TYPES[f.type];
+        G.kills++;
+        burst(f.x, 1.5, f.z, T.beast ? T.color : 0xd23b2f, 8, 9);
+        G.foes.splice(j, 1);
+      }
+    }
+  }
 }
 
 function hitSquad(loss) {
@@ -900,30 +955,42 @@ function update(dt) {
     if (Math.random() < 0.3) spawnCrate(randX(), "crate");
   }
   if (t > 16 && (G.wallTimer -= dt) <= 0) { G.wallTimer = 12 + Math.random() * 5; spawnWall(); }
-  if (G.tier < 2 && (G.pickupTimer -= dt) <= 0) { G.pickupTimer = 18 + Math.random() * 6; spawnPickup(); }
+  if (G.tier < TIERS.length - 1 && (G.pickupTimer -= dt) <= 0) { G.pickupTimer = 9 + Math.random() * 4; spawnPickup(); }
 
   // Tir automatique
   if ((G.volleyTimer -= dt) <= 0) {
+    const W = TIERS[G.tier];
     G.volleyTimer = 1 / volleyRate();
-    const streams = Math.max(1, Math.min(8, Math.ceil(G.count / 4)));
+    const streams = Math.max(1, Math.min(W.streamsMax, Math.ceil(G.count / 4)));
     const dmg = dpsNow() / volleyRate() / streams;
     const spread = Math.min(squadRadius(), 2.6);
     for (let i = 0; i < streams && G.bullets.length < 380; i++) {
       const fx = G.squadX + (streams === 1 ? 0 : (i / (streams - 1) - 0.5) * 2 * spread);
       G.bullets.push({ x: fx, y: 1.4, z: SQUAD_Z - 1.5, dmg, tier: G.tier });
     }
-    // Flammes de bouche (3 max, comme les gerbes de la vidéo)
+    if (W.name === "BAZOOKA") tone(80, 0.2, "sawtooth", 0.22, 0, -40); // départ de missile
+    // Gerbes de bouche aux couleurs de l'arme
     for (let i = 0; i < Math.min(3, streams) && G.parts.length < 260; i++) {
       const fx = G.squadX + (Math.random() - 0.5) * spread * 2;
-      G.parts.push({ x: fx, y: 1.5, z: SQUAD_Z - 1.8, vx: 0, vy: 2.5, vz: -16, life: 0.14, t: 0.14, color: 0xffd84d });
+      G.parts.push({ x: fx, y: 1.5, z: SQUAD_Z - 1.8, vx: 0, vy: 2.5, vz: -16, life: 0.14, t: 0.14, color: W.flash });
     }
   }
 
   // Balles
   for (let i = G.bullets.length - 1; i >= 0; i--) {
     const b = G.bullets[i];
-    b.z -= (90 + scroll) * dt;
+    const W = TIERS[b.tier];
+    b.z -= (W.bsp + scroll) * dt;
     let dead = b.z < SPAWN_Z;
+
+    // Traînée de flammes des missiles
+    if (W.name === "BAZOOKA" && G.parts.length < 280) {
+      G.parts.push({
+        x: b.x + (Math.random() - 0.5) * 0.15, y: b.y, z: b.z + 0.7,
+        vx: 0, vy: 1.5, vz: 6, life: 0.22, t: 0.22,
+        color: Math.random() < 0.5 ? 0xff9d2e : 0xffd84d,
+      });
+    }
 
     if (!dead) for (const g of G.gates) {
       if (g.done || Math.abs(b.z - g.z) > 1.4) continue;
@@ -941,6 +1008,7 @@ function update(dt) {
       if (Math.abs(b.z - wl.z) > 1.2 || Math.abs(b.x - wl.x) > wl.w / 2) continue;
       wl.hp -= b.dmg;
       dead = true;
+      if (W.aoe) blast(b.x, b.z, b.dmg * W.aoe.f, W.aoe.r);
       if (wl.hp <= 0) {
         burst(wl.x, 1.2, wl.z, 0x9aa0a6, 24, 12);
         sPop();
@@ -954,6 +1022,7 @@ function update(dt) {
       if (Math.abs(b.z - c.z) > 1.1 || Math.abs(b.x - c.x) > 0.9) continue;
       c.hp -= b.dmg;
       dead = true;
+      if (W.aoe) blast(b.x, b.z, b.dmg * W.aoe.f, W.aoe.r);
       if (c.hp <= 0) {
         removeCrate(c);
         G.crates.splice(j, 1);
@@ -972,12 +1041,14 @@ function update(dt) {
       if (Math.abs(b.x - f.x) < f.radius + 0.45 && Math.abs(b.z - f.z) < f.radius + 0.9) {
         f.hp -= b.dmg;
         dead = true;
+        if (W.aoe) blast(b.x, b.z, b.dmg * W.aoe.f, W.aoe.r, f);
         if (f.hp <= 0) {
           const T = FOE_TYPES[f.type];
           G.kills++;
           burst(f.x, 1.5, f.z, T.beast ? T.color : 0xd23b2f, T.chomp ? 30 : 8, T.chomp ? 16 : 9);
           sPop();
-          G.foes.splice(j, 1);
+          const idx = G.foes.indexOf(f); // le blast peut avoir décalé les indices
+          if (idx !== -1) G.foes.splice(idx, 1);
         }
         break;
       }
@@ -1011,7 +1082,7 @@ function update(dt) {
     p.mesh.position.y = 1.6 + Math.sin(t * 3 + i) * 0.25;
     p.mesh.rotation.y += dt * 2.5;
     if (p.z > SQUAD_Z - 1 && Math.abs(p.x - G.squadX) < squadRadius() + 1.2) {
-      G.tier = Math.min(2, G.tier + 1);
+      G.tier = Math.min(TIERS.length - 1, G.tier + 1);
       ftext(TIERS[G.tier].name + " !", "#ffd84d", true);
       burst(p.x, 1.6, p.z, 0xffe24a, 22, 12);
       sWeapon();
@@ -1186,17 +1257,18 @@ function render(now) {
   barBG.instanceMatrix.needsUpdate = true;
   barFG.instanceMatrix.needsUpdate = true;
 
-  // Balles par style
-  const bCur = [0, 0, 0];
+  // Projectiles par style (l'orbe plasma pulse)
+  const bCur = bulletMeshes.map(() => 0);
   for (const b of G.bullets) {
     const m = bulletMeshes[b.tier];
+    if (bCur[b.tier] >= m.instanceMatrix.count) continue;
     dummy.position.set(b.x, b.y, b.z);
     dummy.rotation.set(0, 0, 0);
-    dummy.scale.setScalar(1);
+    dummy.scale.setScalar(TIERS[b.tier].name === "PLASMA" ? 1 + 0.3 * Math.sin(now * 0.02 + b.x * 3) : 1);
     dummy.updateMatrix();
     m.setMatrixAt(bCur[b.tier]++, dummy.matrix);
   }
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < bulletMeshes.length; i++) {
     bulletMeshes[i].count = bCur[i];
     bulletMeshes[i].instanceMatrix.needsUpdate = true;
   }
@@ -1242,7 +1314,7 @@ function reset() {
     t: 0, meters: 0, count: 5, kills: 0, maxCount: 5,
     squadX: 0, targetX: 0, stepPhase: 0, moveAmt: 0, stepDir: 1,
     tier: 0, dmgMul: 1, rateMul: 1, armor: 0,
-    gateTimer: 1.4, foeTimer: 2.0, hordeTimer: 8, monsterTimer: 22, crateTimer: 5, wallTimer: 16, pickupTimer: 14, volleyTimer: 0,
+    gateTimer: 1.4, foeTimer: 2.0, hordeTimer: 8, monsterTimer: 22, crateTimer: 5, wallTimer: 16, pickupTimer: 8, volleyTimer: 0,
     shake: 0, pairSeq: 0,
   });
   refreshWeaponHud();
