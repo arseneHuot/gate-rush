@@ -108,7 +108,7 @@ for (const side of [-1, 1]) {
   }
 }
 
-// Lampadaires : décor qui passe (donne la sensation d'avancer, le sol reste fixe)
+// Lampadaires : décor fixe — on n'avance pas, tout vient vers nous
 const lamps = [];
 {
   const poleMat = new THREE.MeshLambertMaterial({ color: 0x3c4046 });
@@ -699,12 +699,6 @@ function update(dt) {
   if (keys.has("ArrowRight")) G.targetX += 22 * dt;
   G.targetX = Math.max(-LANE_HALF + 1.2, Math.min(LANE_HALF - 1.2, G.targetX));
   G.squadX += (G.targetX - G.squadX) * Math.min(1, dt * 12);
-
-  // Lampadaires : défilent et bouclent (le sol, lui, ne bouge pas)
-  for (const l of lamps) {
-    l.position.z += scroll * dt;
-    if (l.position.z > KILL_Z) l.position.z -= 12 * 42;
-  }
 
   // Spawns
   if ((G.gateTimer -= dt) <= 0) { G.gateTimer = gateIv(t); spawnGatePair(); }
