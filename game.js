@@ -14,7 +14,7 @@ const KILL_Z = 14;
 // ---------- Difficulté (relevée : le mur arrive vite) ----------
 const scrollSpeed = t => 24 + t * 0.45;                 // vitesse d'approche du décor
 const unitHp      = t => 2 + Math.pow(t, 1.6) / 5.5;
-const enemyIv     = t => Math.max(0.5, 1.6 - t * 0.025);
+const enemyIv     = t => Math.max(0.4, 1.6 - t * 0.028);
 const gateIv      = t => Math.max(2.2, 3.6 - t * 0.022);
 const baseDPS     = c => 6 + c * 2.4;
 
@@ -65,24 +65,85 @@ function canvasTexture(draw, w = 512, h = 512) {
   tx.anisotropy = 8;
   return tx;
 }
+// Béton réaliste : marbrures, taches, fissures et joints de dilatation
 const concreteTex = canvasTexture((g, w, h) => {
-  g.fillStyle = "#cdc6b8"; g.fillRect(0, 0, w, h);
-  g.globalAlpha = 0.04;
-  for (let i = 0; i < 600; i++) {
-    g.fillStyle = Math.random() < 0.5 ? "#5a544a" : "#fff";
-    const s = 2 + Math.random() * 5;
+  g.fillStyle = "#c9c2b4"; g.fillRect(0, 0, w, h);
+  for (let i = 0; i < 2600; i++) {
+    g.globalAlpha = 0.03 + Math.random() * 0.04;
+    g.fillStyle = Math.random() < 0.5 ? "#8d8678" : "#efe9da";
+    const s = 3 + Math.random() * 14;
     g.fillRect(Math.random() * w, Math.random() * h, s, s);
   }
-});
-concreteTex.repeat.set(2, 18);
+  g.globalAlpha = 0.05;
+  g.fillStyle = "#6e6657";
+  for (let i = 0; i < 26; i++) {
+    g.beginPath();
+    g.ellipse(Math.random() * w, Math.random() * h, 10 + Math.random() * 45, 6 + Math.random() * 25, Math.random() * 3, 0, 6.28);
+    g.fill();
+  }
+  g.globalAlpha = 0.35;
+  g.strokeStyle = "#7d7666";
+  g.lineWidth = 1.5;
+  for (let i = 0; i < 12; i++) {
+    let x = Math.random() * w, y = Math.random() * h;
+    g.beginPath(); g.moveTo(x, y);
+    for (let k = 0; k < 6; k++) {
+      x += (Math.random() - 0.5) * 60;
+      y += Math.random() * 45;
+      g.lineTo(x, y);
+    }
+    g.stroke();
+  }
+  g.globalAlpha = 0.45;
+  g.strokeStyle = "#9a937f";
+  g.lineWidth = 4;
+  for (let y = 0; y <= h; y += 256) {
+    g.beginPath(); g.moveTo(0, y + 1); g.lineTo(w, y + 1); g.stroke();
+  }
+}, 1024, 1024);
+concreteTex.repeat.set(1.6, 12); // joints de dilatation tous les ~9 m
 
+// Mer avec reflets de vagues
+const seaTex = canvasTexture((g, w, h) => {
+  g.fillStyle = "#2e7fc4"; g.fillRect(0, 0, w, h);
+  for (let i = 0; i < 900; i++) {
+    g.globalAlpha = 0.05 + Math.random() * 0.07;
+    g.fillStyle = Math.random() < 0.6 ? "#5da8e0" : "#1d5e9a";
+    g.beginPath();
+    g.ellipse(Math.random() * w, Math.random() * h, 8 + Math.random() * 30, 1.5 + Math.random() * 3, 0, 0, 6.28);
+    g.fill();
+  }
+});
+seaTex.repeat.set(14, 14);
 const sea = new THREE.Mesh(
   new THREE.PlaneGeometry(2000, 2000),
-  new THREE.MeshLambertMaterial({ color: 0x2e7fc4 })
+  new THREE.MeshLambertMaterial({ map: seaTex })
 );
 sea.rotation.x = -Math.PI / 2;
 sea.position.y = -7;
 scene.add(sea);
+
+// Nuages (sprites doux, fixes dans le ciel)
+{
+  const c = document.createElement("canvas");
+  c.width = 256; c.height = 128;
+  const g = c.getContext("2d");
+  const grad = g.createRadialGradient(128, 64, 8, 128, 64, 62);
+  grad.addColorStop(0, "rgba(255,255,255,.95)");
+  grad.addColorStop(1, "rgba(255,255,255,0)");
+  g.fillStyle = grad;
+  for (const [x, y, r] of [[90, 70, 1], [128, 55, 1.3], [170, 72, 0.9]]) {
+    g.save(); g.translate(x - 128, y - 64); g.scale(r, r * 0.6); g.fillRect(0, 0, 256, 128); g.restore();
+  }
+  const tx = new THREE.CanvasTexture(c);
+  for (let i = 0; i < 7; i++) {
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tx, transparent: true, opacity: 0.85, depthWrite: false }));
+    sp.position.set(-120 + Math.random() * 240, 32 + Math.random() * 30, -200 - Math.random() * 60);
+    const s = 28 + Math.random() * 30;
+    sp.scale.set(s, s * 0.42, 1);
+    scene.add(sp);
+  }
+}
 
 const floor = new THREE.Mesh(
   new THREE.BoxGeometry(LANE_HALF * 2 + 4, 2, 420),
@@ -90,17 +151,39 @@ const floor = new THREE.Mesh(
 floor.position.set(0, -1, -170);
 scene.add(floor);
 
-// Balustrades en pierre claire
+// Vraie balustrade en pierre : muret bas + balustres + main courante (comme la vidéo)
 const balMat = new THREE.MeshLambertMaterial({ color: 0xb6b9bd });
 const balTopMat = new THREE.MeshLambertMaterial({ color: 0xa7abb0 });
-for (const side of [-1, 1]) {
-  const wall = new THREE.Mesh(new THREE.BoxGeometry(0.9, 1.3, 420), balMat);
-  wall.position.set(side * (LANE_HALF + 1.2), 0.65, -170);
-  scene.add(wall);
-  const cap = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.22, 420), balTopMat);
-  cap.position.set(side * (LANE_HALF + 1.2), 1.4, -170);
-  scene.add(cap);
-  for (let i = 0; i < 9; i++) {
+{
+  const balusterGeo = new THREE.CylinderGeometry(0.09, 0.13, 0.85, 6);
+  const balusters = new THREE.InstancedMesh(balusterGeo, balMat, 240);
+  balusters.frustumCulled = false;
+  let bi = 0;
+  const bd = new THREE.Object3D();
+  for (const side of [-1, 1]) {
+    const curb = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.35, 420), balMat);
+    curb.position.set(side * (LANE_HALF + 1.2), 0.17, -170);
+    scene.add(curb);
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.2, 420), balTopMat);
+    rail.position.set(side * (LANE_HALF + 1.2), 1.28, -170);
+    scene.add(rail);
+    // pilastres massifs régulièrement espacés
+    for (let i = 0; i < 11; i++) {
+      const block = new THREE.Mesh(new THREE.BoxGeometry(1.25, 1.15, 1.25), balTopMat);
+      block.position.set(side * (LANE_HALF + 1.2), 0.7, -i * 38 - 4);
+      scene.add(block);
+    }
+    for (let z = 16; z > -404 && bi < 240; z -= 3.4) {
+      bd.position.set(side * (LANE_HALF + 1.2), 0.76, z - 16);
+      bd.updateMatrix();
+      balusters.setMatrixAt(bi++, bd.matrix);
+    }
+  }
+  balusters.count = bi;
+  balusters.instanceMatrix.needsUpdate = true;
+  scene.add(balusters);
+  // piles du pont sous le tablier
+  for (const side of [-1, 1]) for (let i = 0; i < 9; i++) {
     const p = new THREE.Mesh(new THREE.BoxGeometry(2.4, 8, 2.4),
       new THREE.MeshLambertMaterial({ color: 0x8e9296 }));
     p.position.set(side * (LANE_HALF - 0.2), -4.8, -i * 48 - 10);
@@ -111,19 +194,26 @@ for (const side of [-1, 1]) {
 // Lampadaires : décor fixe — on n'avance pas, tout vient vers nous
 const lamps = [];
 {
-  const poleMat = new THREE.MeshLambertMaterial({ color: 0x3c4046 });
-  const headMat = new THREE.MeshLambertMaterial({ color: 0xf3eede });
+  const poleMat = new THREE.MeshLambertMaterial({ color: 0x33373c });
+  const headMat = new THREE.MeshBasicMaterial({ color: 0xfff6da });
   for (let i = 0; i < 12; i++) {
     const grp = new THREE.Group();
-    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.13, 4.6, 8), poleMat);
-    pole.position.y = 2.3;
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.3, 8, 8), headMat);
-    head.position.y = 4.7;
-    const base = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.5, 0.7), poleMat);
-    base.position.y = 0.25;
-    grp.add(pole, head, base);
     const side = i % 2 === 0 ? -1 : 1;
-    grp.position.set(side * (LANE_HALF - 0.7), 0, -i * 42 - 8);
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.38, 0.5, 10), poleMat);
+    base.position.y = 0.25;
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.15, 4.6, 8), poleMat);
+    pole.position.y = 2.55;
+    const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.12, 8), poleMat);
+    collar.position.y = 1.1;
+    const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.5, 6), poleMat);
+    arm.rotation.z = Math.PI / 2;
+    arm.position.set(-side * 0.7, 4.8, 0);
+    const fixture = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.42, 0.25, 10), poleMat);
+    fixture.position.set(-side * 1.4, 4.68, 0);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 8), headMat);
+    head.position.set(-side * 1.4, 4.52, 0);
+    grp.add(base, pole, collar, arm, fixture, head);
+    grp.position.set(side * (LANE_HALF - 0.6), 0, -i * 42 - 8);
     scene.add(grp);
     lamps.push(grp);
   }
@@ -202,8 +292,9 @@ function soldierGeo({ cloth, vest, cap, bulk = 1, weapon = "rifle", pack = true,
   return mergeGeometries(parts);
 }
 
-// Dinosaure type T-Rex (comme dans la vidéo)
-function dinoGeo() {
+// ---------- Famille de dinosaures ----------
+// T-Rex : le boss
+function rexGeo() {
   const body = 0x9aa05e, belly = 0xb5b878, dark = 0x6f7440;
   return mergeGeometries([
     part(CAP, body, [0, 2.2, 0.2], [Math.PI / 2.6, 0, 0], [1.1, 1.3, 1.1]),    // corps
@@ -219,6 +310,43 @@ function dinoGeo() {
     part(BOX, dark, [-0.55, 1, 0.3], [0, 0, 0], [0.45, 2, 0.7]),               // jambe G
     part(BOX, dark, [0.5, 2.6, -0.7], [-0.5, 0, 0], [0.2, 0.6, 0.2]),          // petit bras D
     part(BOX, dark, [-0.5, 2.6, -0.7], [-0.5, 0, 0], [0.2, 0.6, 0.2]),         // petit bras G
+  ]);
+}
+// Raptor : petit, rapide, chasse en meute
+function raptorGeo() {
+  const body = 0xa8743e, dark = 0x7a5128;
+  return mergeGeometries([
+    part(CAP, body, [0, 1.05, 0.1], [Math.PI / 2.2, 0, 0], [0.42, 0.7, 0.42]),  // corps penché
+    part(CAP, body, [0, 1.45, -0.75], [1, 0, 0], [0.22, 0.35, 0.22]),           // cou
+    part(BOX, body, [0, 1.62, -1.25], [0.2, 0, 0], [0.34, 0.3, 0.75]),          // tête
+    part(BOX, 0xc9995e, [0, 1.5, -1.4], [0.3, 0, 0], [0.28, 0.14, 0.6]),        // mâchoire
+    part(SPH, 0x222222, [0.13, 1.7, -1.3], [0, 0, 0], [0.05, 0.05, 0.05]),
+    part(SPH, 0x222222, [-0.13, 1.7, -1.3], [0, 0, 0], [0.05, 0.05, 0.05]),
+    part(CONE, body, [0, 1.15, 1.35], [-1.4, 0, 0], [0.18, 1.6, 0.18]),         // queue
+    part(BOX, dark, [0.24, 0.5, 0.15], [0, 0, 0], [0.18, 1, 0.3]),              // jambes
+    part(BOX, dark, [-0.24, 0.5, 0.15], [0, 0, 0], [0.18, 1, 0.3]),
+    part(BOX, dark, [0.3, 1.15, -0.5], [-0.6, 0, 0], [0.09, 0.3, 0.09]),        // griffes avant
+    part(BOX, dark, [-0.3, 1.15, -0.5], [-0.6, 0, 0], [0.09, 0.3, 0.09]),
+  ]);
+}
+// Tricératops : lent, blindé, charge
+function trikeGeo() {
+  const body = 0x7d8568, dark = 0x5a6048, horn = 0xe8e4d0;
+  return mergeGeometries([
+    part(CAP, body, [0, 1.5, 0.3], [Math.PI / 2, 0, 0], [1.05, 1.2, 1.05]),     // corps massif
+    part(CYL, dark, [0, 2.05, -1.45], [Math.PI / 2.6, 0, 0], [0.95, 0.25, 0.95]), // collerette
+    part(BOX, body, [0, 1.7, -1.7], [0.25, 0, 0], [0.75, 0.65, 1]),             // tête
+    part(BOX, dark, [0, 1.45, -2.15], [0.4, 0, 0], [0.5, 0.35, 0.5]),           // bec
+    part(CONE, horn, [0.3, 2.15, -1.95], [-1.3, 0, 0], [0.09, 0.75, 0.09]),     // corne D
+    part(CONE, horn, [-0.3, 2.15, -1.95], [-1.3, 0, 0], [0.09, 0.75, 0.09]),    // corne G
+    part(CONE, horn, [0, 1.8, -2.35], [-1.3, 0, 0], [0.08, 0.45, 0.08]),        // corne nasale
+    part(SPH, 0x222222, [0.34, 1.95, -1.55], [0, 0, 0], [0.06, 0.06, 0.06]),
+    part(SPH, 0x222222, [-0.34, 1.95, -1.55], [0, 0, 0], [0.06, 0.06, 0.06]),
+    part(CONE, body, [0, 1.5, 1.9], [-1.45, 0, 0], [0.3, 1.6, 0.3]),            // queue
+    part(BOX, dark, [0.55, 0.55, -0.55], [0, 0, 0], [0.36, 1.1, 0.42]),         // pattes
+    part(BOX, dark, [-0.55, 0.55, -0.55], [0, 0, 0], [0.36, 1.1, 0.42]),
+    part(BOX, dark, [0.55, 0.55, 0.95], [0, 0, 0], [0.36, 1.1, 0.42]),
+    part(BOX, dark, [-0.55, 0.55, 0.95], [0, 0, 0], [0.36, 1.1, 0.42]),
   ]);
 }
 
@@ -246,15 +374,20 @@ const plateMesh = makeInstanced(
 plateMesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(80 * 3), 3);
 const PLATE_COLORS = [null, new THREE.Color(0x9aa2ab), new THREE.Color(0xd5dbe2), new THREE.Color(0xffd34a)];
 
-// Ennemis individuels : éclaireur, soldat, brute, dino
+// Ennemis individuels : humains + dinosaures (beast)
 const FOE_TYPES = {
-  runner:  { hpMul: 0.5, sp: 2.2, scale: 0.9, loss: h => 2, cap: 50,
+  runner:  { hpMul: 0.5, sp: 2.2, scale: 0.9, loss: h => 2, cap: 50, radius: 0.7,
              geo: soldierGeo({ cloth: 0xe8554a, vest: null, cap: null, weapon: "pistol", pack: false }) },
-  soldier: { hpMul: 1, sp: 1, scale: 1, loss: h => Math.round(h / 4), cap: 80,
+  soldier: { hpMul: 1, sp: 1, scale: 1, loss: h => Math.round(h / 4), cap: 80, radius: 0.75,
              geo: soldierGeo({ cloth: 0xd23b2f, vest: 0x5e3a32, cap: 0x7e2a24, weapon: "rifle" }) },
-  brute:   { hpMul: 3.4, sp: 0.55, scale: 1.45, loss: h => Math.round(h / 3), cap: 30,
+  brute:   { hpMul: 3.4, sp: 0.55, scale: 1.45, loss: h => Math.round(h / 3), cap: 30, radius: 1.1,
              geo: soldierGeo({ cloth: 0x8c2b24, vest: 0x4a4e54, cap: 0x3a3d42, bulk: 1.5, weapon: "minigun", plates: true }) },
-  dino:    { hpMul: 26, sp: 1.15, scale: 1.2, loss: h => 35, cap: 6, geo: dinoGeo() },
+  raptor:  { hpMul: 1.7, sp: 2.6, scale: 1, loss: h => 8, cap: 24, radius: 0.9,
+             beast: true, barH: 2.2, color: 0xa8743e, geo: raptorGeo() },
+  trike:   { hpMul: 13, sp: 0.8, scale: 1.1, loss: h => 22, cap: 8, radius: 2.1,
+             beast: true, chomp: true, barH: 3.3, color: 0x7d8568, geo: trikeGeo() },
+  rex:     { hpMul: 30, sp: 1.1, scale: 1.25, loss: h => 35, cap: 6, radius: 2.6,
+             beast: true, chomp: true, barH: 5.2, color: 0x9aa05e, geo: rexGeo() },
 };
 for (const k in FOE_TYPES) FOE_TYPES[k].mesh = makeInstanced(FOE_TYPES[k].geo, vcMat(), FOE_TYPES[k].cap);
 
@@ -426,7 +559,7 @@ const G = {
   squadX: 0, targetX: 0,
   tier: 0, dmgMul: 1, rateMul: 1, armor: 0,
   gates: [], foes: [], bullets: [], parts: [], texts: [], crates: [], walls: [], pickups: [],
-  gateTimer: 1.4, foeTimer: 2.0, hordeTimer: 8, dinoTimer: 25, crateTimer: 5, wallTimer: 16, pickupTimer: 14, volleyTimer: 0,
+  gateTimer: 1.4, foeTimer: 2.0, hordeTimer: 8, monsterTimer: 22, crateTimer: 5, wallTimer: 16, pickupTimer: 14, volleyTimer: 0,
   shake: 0, pairSeq: 0,
 };
 const dpsNow = () => baseDPS(G.count) * TIERS[G.tier].dmgMul * G.dmgMul;
@@ -551,12 +684,12 @@ function spawnFoe(type, x, z, hpMul = 1) {
   G.foes.push({
     type, x, z, hp, maxHp: hp,
     scale: T.scale,
-    sp: (2.6 + G.t * 0.045 + Math.random() * 1.4) * T.sp,
+    sp: (2.2 + G.t * 0.04 + Math.random() * 1.2) * T.sp,
     wob: Math.random() * 6.28,
-    radius: type === "dino" ? 2.4 : 0.75 * T.scale,
+    radius: T.radius,
     bite: 0,
   });
-  if (type === "dino") sRoar();
+  if (T.chomp) sRoar();
 }
 // Colonne de soldats qui marchent vers nous (comme la vidéo)
 function spawnColumn(type, x, n) {
@@ -711,13 +844,26 @@ function update(dt) {
     if (t > 8 && Math.random() < 0.18) spawnCrate(randX(), "barrel");
   }
   if (t > 10 && (G.hordeTimer -= dt) <= 0) {
-    G.hordeTimer = Math.max(4, 7.5 - t * 0.04);
+    G.hordeTimer = Math.max(3.2, 7.5 - t * 0.05);
     const k = 5 + Math.floor(t / 12);
     for (let i = 0; i < k; i++)
       spawnFoe(Math.random() < 0.3 ? "runner" : "soldier",
         -LANE_HALF + 1.8 + (i + 0.5) * (LANE_HALF * 2 - 3.6) / k, SPAWN_Z - Math.random() * 6, 0.9);
   }
-  if (t > 25 && (G.dinoTimer -= dt) <= 0) { G.dinoTimer = Math.max(11, 16 - t * 0.04); spawnFoe("dino", randX(), SPAWN_Z); }
+  // Événements monstres : meute de raptors, tricératops ou T-Rex boss
+  if (t > 20 && (G.monsterTimer -= dt) <= 0) {
+    G.monsterTimer = Math.max(9, 15 - t * 0.04);
+    const r = Math.random();
+    if (r < 0.42) {
+      const n = 2 + Math.floor(Math.random() * 2 + t / 35);
+      for (let i = 0; i < n; i++) spawnFoe("raptor", randX(), SPAWN_Z - Math.random() * 10);
+    } else if (r < 0.74) {
+      spawnFoe("trike", randX(), SPAWN_Z);
+      if (t > 60) spawnFoe("trike", randX(), SPAWN_Z - 14);
+    } else {
+      spawnFoe("rex", randX(), SPAWN_Z, 1 + t / 120); // le boss grossit avec le temps
+    }
+  }
   if ((G.crateTimer -= dt) <= 0) {
     G.crateTimer = 5 + Math.random() * 4;
     spawnCrate(randX(), "crate");
@@ -797,8 +943,9 @@ function update(dt) {
         f.hp -= b.dmg;
         dead = true;
         if (f.hp <= 0) {
+          const T = FOE_TYPES[f.type];
           G.kills++;
-          burst(f.x, 1.5, f.z, 0xd23b2f, f.type === "dino" ? 30 : 8, f.type === "dino" ? 16 : 9);
+          burst(f.x, 1.5, f.z, T.beast ? T.color : 0xd23b2f, T.chomp ? 30 : 8, T.chomp ? 16 : 9);
           sPop();
           G.foes.splice(j, 1);
         }
@@ -871,26 +1018,27 @@ function update(dt) {
     }
   }
 
-  // Ennemis : ils MARCHENT vers nous
+  // Ennemis : ils MARCHENT vers nous (un peu moins vite)
   const sr = squadRadius();
   for (let i = G.foes.length - 1; i >= 0; i--) {
     const f = G.foes[i];
-    f.z += (scroll * 0.5 + f.sp) * dt;
+    const T = FOE_TYPES[f.type];
+    f.z += (scroll * 0.38 + f.sp) * dt;
     f.x += Math.sin(t * 2.4 + f.wob) * 0.4 * dt;
     f.x = Math.max(-LANE_HALF + 1, Math.min(LANE_HALF - 1, f.x));
     f.bite -= dt;
     if (f.z > SQUAD_Z - 1.2 && Math.abs(f.x - G.squadX) < f.radius + sr) {
-      if (f.type === "dino") {
-        // le dino mord par vagues et encaisse la riposte
+      if (T.chomp) {
+        // les gros dinos mordent par vagues et encaissent la riposte
         if (f.bite <= 0) {
           f.bite = 0.9;
           f.hp -= dpsNow() * 0.5;
-          hitSquad(FOE_TYPES.dino.loss(f.hp));
+          hitSquad(T.loss(f.hp));
           if (G.state !== "playing") return;
-          if (f.hp <= 0) { G.kills++; burst(f.x, 2, f.z, 0x9aa05e, 30, 16); G.foes.splice(i, 1); }
+          if (f.hp <= 0) { G.kills++; burst(f.x, 2, f.z, T.color, 30, 16); G.foes.splice(i, 1); }
         }
       } else {
-        hitSquad(FOE_TYPES[f.type].loss(f.hp));
+        hitSquad(T.loss(f.hp));
         G.foes.splice(i, 1);
         if (G.state !== "playing") return;
       }
@@ -974,13 +1122,13 @@ function render(now) {
   for (const f of G.foes) {
     const T = FOE_TYPES[f.type];
     if (cursors[f.type] >= T.cap) continue;
-    if (f.type === "dino") {
+    if (T.beast) {
       dummy.position.set(f.x, Math.abs(Math.sin(now * 0.006 + f.wob)) * 0.15, f.z);
       dummy.rotation.set(0, Math.sin(now * 0.003 + f.wob) * 0.08, Math.sin(now * 0.005 + f.wob) * 0.04);
       dummy.scale.setScalar(f.scale);
       dummy.updateMatrix();
       T.mesh.setMatrixAt(cursors[f.type]++, dummy.matrix);
-      pushBar(f.x, 5.2 * f.scale, f.z, 4, f.hp / f.maxHp);
+      pushBar(f.x, T.barH * f.scale, f.z, T.chomp ? 4 : 2, f.hp / f.maxHp);
     } else {
       placeHumanoid(T.mesh, cursors[f.type]++, f.x, f.z, f.scale,
         now * 0.011 * T.sp + f.wob * 4, -0.06, LEG_FOE);
@@ -1057,7 +1205,7 @@ function reset() {
     t: 0, meters: 0, count: 5, kills: 0, maxCount: 5,
     squadX: 0, targetX: 0,
     tier: 0, dmgMul: 1, rateMul: 1, armor: 0,
-    gateTimer: 1.4, foeTimer: 2.0, hordeTimer: 8, dinoTimer: 25, crateTimer: 5, wallTimer: 16, pickupTimer: 14, volleyTimer: 0,
+    gateTimer: 1.4, foeTimer: 2.0, hordeTimer: 8, monsterTimer: 22, crateTimer: 5, wallTimer: 16, pickupTimer: 14, volleyTimer: 0,
     shake: 0, pairSeq: 0,
   });
   refreshWeaponHud();
