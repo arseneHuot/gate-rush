@@ -14,7 +14,10 @@
 
   <!-- HUD -->
   <div id="hud" class="hidden">
-    <div id="meters">0 m</div>
+    <div>
+      <div id="meters">0 m</div>
+      <div id="weapon">FUSIL</div>
+    </div>
     <button id="mute" type="button">🔊</button>
   </div>
 
@@ -22,7 +25,7 @@
   <div id="menu" class="overlay">
     <h1>GATE<span>RUSH</span></h1>
     <p class="tagline">La pub fake… en vrai jeu.</p>
-    <p class="howto">Glisse pour déplacer ta squad.<br>Passe les <b class="good">bonnes portes</b>, évite les <b class="bad">rouges</b>.<br>Tire sur une porte pour <b>augmenter sa valeur</b>.</p>
+    <p class="howto">Glisse pour déplacer ta squad.<br>Passe les <b class="good">bonnes portes</b>, évite les <b class="bad">rouges</b>.<br>Détruis les <b>caisses 🎁</b> : soldats, dégâts, cadence, armes…<br>Tire sur une porte pour <b>augmenter sa valeur</b>.</p>
     <button id="play" type="button">JOUER</button>
     <div id="menu-board" class="board">
       <h2>🏆 TOP 10 MONDIAL</h2>
@@ -51,7 +54,10 @@
   </div>
 </div>
 <script type="importmap">
-{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
 </script>
 <script src="leaderboard.js"></script>
 <script type="module" src="game.js"></script>

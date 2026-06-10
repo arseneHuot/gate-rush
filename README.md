@@ -8,7 +8,12 @@ Les parties sont courtes : la difficulté monte très vite.
 **Jouer : https://arsenehuot.github.io/gate-rush/**
 
 ## Fonctionnalités
-- 3D (Three.js), fidèle au look des pubs : pont en pierre sur l'océan, soldats low-poly
+- 3D (Three.js), fidèle au look des pubs : pont en pierre sur l'océan, soldats
+  humanoïdes instanciés (casque, gilet, fusil, jambes animées)
+- Portes : nombres (+N, x2, −N, ÷2) et améliorations dorées (DÉGÂTS, CADENCE, ARME ↑)
+- 3 armes : FUSIL → MINIGUN → BLASTER, chacune avec ses projectiles
+- Obstacles : caisses bonus 🎁, barils explosifs, barricades à détruire
+- Ennemis : éclaireurs rapides, soldats en squad, brutes blindées, boss géants
 - Tirer sur une porte augmente sa valeur (max +10 par porte)
 - Classement mondial top 100 : pseudo + rang affichés en fin de partie
 - Mobile (glisser) et desktop (souris ou flèches)
