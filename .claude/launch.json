@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "gate-rush",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "4173", "--directory", "/Users/arsenehuot/last-war-rush"],
+      "port": 4173
+    }
+  ]
+}

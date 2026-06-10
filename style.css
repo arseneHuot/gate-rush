@@ -1,0 +1,187 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  background: #0b0e1a;
+  font-family: "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  color: #fff;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: none;
+}
+
+#wrap {
+  position: relative;
+  height: 100%;
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+#flash {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 40%, rgba(255,30,50,.55) 100%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .12s;
+}
+
+/* ---------- HUD ---------- */
+#hud {
+  position: absolute;
+  top: env(safe-area-inset-top, 0);
+  left: 0; right: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 14px 16px;
+  pointer-events: none;
+}
+#meters {
+  font-size: 30px;
+  font-weight: 800;
+  text-shadow: 0 2px 8px rgba(0,0,0,.7);
+  font-variant-numeric: tabular-nums;
+}
+#mute {
+  pointer-events: auto;
+  background: rgba(255,255,255,.12);
+  border: none;
+  border-radius: 10px;
+  font-size: 20px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+/* ---------- Overlays ---------- */
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 24px;
+  background: rgba(8, 10, 22, .82);
+  backdrop-filter: blur(6px);
+  text-align: center;
+  overflow-y: auto;
+}
+.hidden { display: none !important; }
+
+h1 {
+  font-size: 54px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  line-height: .95;
+}
+h1 span {
+  display: block;
+  color: #4da3ff;
+  text-shadow: 0 0 24px rgba(77,163,255,.8);
+}
+.tagline { color: #9aa3c0; font-size: 15px; }
+.howto { font-size: 14px; line-height: 1.6; color: #c7cde4; }
+.good { color: #5fb6ff; }
+.bad { color: #ff5f6b; }
+
+button {
+  font-family: inherit;
+  font-weight: 800;
+  font-size: 20px;
+  letter-spacing: 1px;
+  color: #fff;
+  background: linear-gradient(180deg, #2f8bff, #1d5fd6);
+  border: none;
+  border-radius: 14px;
+  padding: 14px 44px;
+  cursor: pointer;
+  box-shadow: 0 6px 0 #143f8f, 0 10px 24px rgba(47,139,255,.35);
+  transition: transform .08s;
+}
+button:active { transform: translateY(3px); box-shadow: 0 3px 0 #143f8f; }
+
+#replay {
+  background: linear-gradient(180deg, #3ddc84, #1fa45c);
+  box-shadow: 0 6px 0 #14703e, 0 10px 24px rgba(61,220,132,.3);
+}
+
+/* ---------- Leaderboard ---------- */
+.board {
+  width: min(320px, 90%);
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 16px;
+  padding: 14px 18px;
+}
+.board h2 { font-size: 15px; letter-spacing: 1px; margin-bottom: 8px; }
+.board ol { list-style: none; counter-reset: rank; }
+.board li {
+  counter-increment: rank;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 14px;
+  padding: 3px 0;
+  font-variant-numeric: tabular-nums;
+}
+.board li::before {
+  content: counter(rank);
+  color: #8a93b5;
+  width: 22px;
+  text-align: right;
+  flex: none;
+}
+.board li .nm { flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.board li .sc { font-weight: 700; }
+.board li.me { color: #ffd84d; font-weight: 800; }
+.board li.dim { color: #8a93b5; justify-content: center; }
+.board li.dim::before { content: ""; width: 0; }
+
+/* ---------- Game over ---------- */
+#over h2 { font-size: 28px; font-weight: 900; letter-spacing: 2px; }
+#final-score {
+  font-size: 58px;
+  font-weight: 900;
+  color: #ffd84d;
+  text-shadow: 0 0 30px rgba(255,216,77,.5);
+  line-height: 1;
+}
+#final-stats { color: #9aa3c0; font-size: 14px; }
+
+#submit-form { display: flex; flex-direction: column; gap: 10px; width: min(300px, 88%); }
+#pseudo {
+  font-family: inherit;
+  font-size: 18px;
+  font-weight: 700;
+  text-align: center;
+  color: #fff;
+  background: rgba(255,255,255,.1);
+  border: 2px solid rgba(255,255,255,.25);
+  border-radius: 12px;
+  padding: 12px;
+  outline: none;
+}
+#pseudo:focus { border-color: #4da3ff; }
+#submit-btn { font-size: 16px; padding: 12px 20px; }
+
+#rank-result {
+  font-size: 22px;
+  font-weight: 800;
+  color: #3ddc84;
+}
+#rank-result .big { font-size: 40px; color: #ffd84d; display: block; }
+
+@media (max-height: 640px) {
+  h1 { font-size: 40px; }
+  #final-score { font-size: 42px; }
+  .overlay { gap: 10px; }
+}

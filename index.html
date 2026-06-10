@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>GATE RUSH — la pub fake, en vrai jeu</title>
+<meta name="description" content="Le jeu des pubs fake de Last War, mais en vrai. Traverse les bonnes portes, fais grossir ton armée, survis aux hordes. Classement mondial.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="wrap">
+  <canvas id="game"></canvas>
+  <div id="flash"></div>
+
+  <!-- HUD -->
+  <div id="hud" class="hidden">
+    <div id="meters">0 m</div>
+    <button id="mute" type="button">🔊</button>
+  </div>
+
+  <!-- Écran d'accueil -->
+  <div id="menu" class="overlay">
+    <h1>GATE<span>RUSH</span></h1>
+    <p class="tagline">La pub fake… en vrai jeu.</p>
+    <p class="howto">Glisse pour déplacer ta squad.<br>Passe les <b class="good">bonnes portes</b>, évite les <b class="bad">rouges</b>.<br>Tire sur une porte pour <b>augmenter sa valeur</b>.</p>
+    <button id="play" type="button">JOUER</button>
+    <div id="menu-board" class="board">
+      <h2>🏆 TOP 10 MONDIAL</h2>
+      <ol id="menu-scores"><li class="dim">chargement…</li></ol>
+    </div>
+  </div>
+
+  <!-- Écran de fin -->
+  <div id="over" class="overlay hidden">
+    <h2 id="over-title">PARTIE TERMINÉE</h2>
+    <div id="final-score">0 m</div>
+    <div id="final-stats"></div>
+
+    <form id="submit-form">
+      <input id="pseudo" type="text" maxlength="14" placeholder="Ton pseudo" autocomplete="off" spellcheck="false">
+      <button id="submit-btn" type="submit">ENVOYER MON SCORE</button>
+    </form>
+
+    <div id="rank-result" class="hidden"></div>
+    <div id="over-board" class="board hidden">
+      <h2>🏆 TOP 10 MONDIAL</h2>
+      <ol id="over-scores"></ol>
+    </div>
+
+    <button id="replay" type="button">REJOUER</button>
+  </div>
+</div>
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+</script>
+<script src="leaderboard.js"></script>
+<script type="module" src="game.js"></script>
+</body>
+</html>
