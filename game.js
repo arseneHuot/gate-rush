@@ -13,8 +13,8 @@ const KILL_Z = 14;
 
 // ---------- Difficulté : montée progressive, mur vers 2-3 minutes ----------
 const scrollSpeed = t => 24 + Math.min(46, t * 0.3);    // vitesse d'approche du décor
-const unitHp      = t => 2 + Math.pow(t, 1.5) / 7.5;
-const enemyIv     = t => Math.max(0.28, 1.5 - t * 0.013);
+const unitHp      = t => 2 + Math.pow(t, 1.5) / 10.5;
+const enemyIv     = t => Math.max(0.28, 1.5 - t * 0.009);
 const gateIv      = t => Math.max(2.2, 3.6 - t * 0.022);
 const baseDPS     = c => 6 + c * 2.4;
 
@@ -676,7 +676,7 @@ const G = {
   squadX: 0, targetX: 0, stepPhase: 0, moveAmt: 0, stepDir: 1,
   tier: 0, dmgMul: 1, rateMul: 1, armor: 0,
   gates: [], foes: [], bullets: [], parts: [], texts: [], crates: [], walls: [], pickups: [],
-  gateTimer: 1.4, foeTimer: 2.0, hordeTimer: 8, monsterTimer: 22, crateTimer: 5, wallTimer: 16, pickupTimer: 6, flagTimer: 15, mineTimer: 14, volleyTimer: 0,
+  gateTimer: 1.4, foeTimer: 2.0, hordeTimer: 8, monsterTimer: 22, crateTimer: 5, wallTimer: 16, flagTimer: 15, mineTimer: 14, volleyTimer: 0,
   shake: 0, pairSeq: 0,
 };
 const dpsNow = () => baseDPS(G.count) * TIERS[G.tier].dmgMul * G.dmgMul;
@@ -815,7 +815,7 @@ function spawnColumn(type, x, n, zBase = SPAWN_Z) {
 }
 function pickFoeType(t) {
   const r = Math.random();
-  if (t > 18 && r < 0.14 + t / 350) return "brute";
+  if (t > 18 && r < 0.14 + t / 450) return "brute";
   if (t > 5 && r < 0.45) return "runner";
   return "soldier";
 }
@@ -988,7 +988,7 @@ function update(dt) {
   if ((G.foeTimer -= dt) <= 0) {
     G.foeTimer = enemyIv(t);
     const type = pickFoeType(t);
-    if (type === "soldier") spawnColumn("soldier", randX(), Math.min(12, 2 + Math.floor(t / 12)));
+    if (type === "soldier") spawnColumn("soldier", randX(), Math.min(12, 2 + Math.floor(t / 16)));
     else if (type === "runner") spawnColumn("runner", randX(), 1 + Math.floor(Math.random() * 3));
     else spawnFoe("brute", randX(), SPAWN_Z);
     // colonne d'appoint : densité visuelle
@@ -996,15 +996,15 @@ function update(dt) {
     if (t > 8 && Math.random() < 0.18) spawnCrate(randX(), "barrel");
   }
   if (t > 10 && (G.hordeTimer -= dt) <= 0) {
-    G.hordeTimer = Math.max(3, 7.5 - t * 0.03);
-    const k = 4 + Math.floor(t / 18);
+    G.hordeTimer = Math.max(3, 7.5 - t * 0.022);
+    const k = 4 + Math.floor(t / 24);
     for (let i = 0; i < k; i++)
       spawnFoe(Math.random() < 0.3 ? "runner" : "soldier",
         -LANE_HALF + 1.8 + (i + 0.5) * (LANE_HALF * 2 - 3.6) / k, SPAWN_Z - Math.random() * 6, 0.9);
   }
   // Événements monstres : meute de raptors, tricératops ou T-Rex boss
   if (t > 20 && (G.monsterTimer -= dt) <= 0) {
-    G.monsterTimer = Math.max(6.5, 14 - t * 0.04);
+    G.monsterTimer = Math.max(7, 15 - t * 0.03);
     const r = Math.random();
     if (r < 0.42) {
       const n = 2 + Math.floor(Math.random() * 2 + t / 35);
@@ -1022,7 +1022,9 @@ function update(dt) {
     if (Math.random() < 0.3) spawnCrate(randX(), "crate");
   }
   if (t > 16 && (G.wallTimer -= dt) <= 0) { G.wallTimer = 12 + Math.random() * 5; spawnWall(); }
-  if (G.tier < maxTierNow() && (G.pickupTimer -= dt) <= 0) { G.pickupTimer = 6 + Math.random() * 2; spawnPickup("weapon"); }
+  // Une nouvelle arme tous les 800 m (spawn 150 m en avance pour arriver pile au palier ; réapparaît si ratée)
+  if (G.tier < maxTierNow() && G.meters >= (G.tier + 1) * 800 - 150 && !G.pickups.some(p => p.kind === "weapon"))
+    spawnPickup("weapon");
   if (t > 12 && (G.flagTimer -= dt) <= 0) { G.flagTimer = 13 + Math.random() * 6; spawnPickup("flag"); }
   if (t > 12 && (G.mineTimer -= dt) <= 0) {
     G.mineTimer = Math.max(6, 11 - t * 0.02);
@@ -1473,7 +1475,7 @@ function reset() {
     t: 0, meters: 0, count: 5, kills: 0, maxCount: 5,
     squadX: 0, targetX: 0, stepPhase: 0, moveAmt: 0, stepDir: 1,
     tier: 0, dmgMul: 1, rateMul: 1, armor: 0,
-    gateTimer: 1.4, foeTimer: 2.0, hordeTimer: 8, monsterTimer: 22, crateTimer: 5, wallTimer: 16, pickupTimer: 6, flagTimer: 15, mineTimer: 14, volleyTimer: 0,
+    gateTimer: 1.4, foeTimer: 2.0, hordeTimer: 8, monsterTimer: 22, crateTimer: 5, wallTimer: 16, flagTimer: 15, mineTimer: 14, volleyTimer: 0,
     shake: 0, pairSeq: 0,
   });
   refreshWeaponHud();
