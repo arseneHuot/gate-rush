@@ -266,12 +266,22 @@ function weaponParts(kind, cloth) {
   ];
 }
 
-/* Humanoïde façon vidéo : veste colorée, gilet tactique kaki, casquette/casque,
-   pantalon kaki (jambes instanciées), arme à deux mains. */
-function soldierGeo({ cloth, vest, cap, bulk = 1, weapon = "rifle", pack = true, plates = false }) {
+/* Humanoïde détaillé : veste à col, gilet tactique à poches, épaulettes,
+   ceinturon à boucle, sac à dos avec rouleau, casquette à visière,
+   arme à deux mains. `face` ajoute des yeux (ennemis vus de face). */
+function darker(hex, f = 0.6) {
+  const c = new THREE.Color(hex).multiplyScalar(f);
+  return c.getHex();
+}
+function soldierGeo({ cloth, vest, cap, bulk = 1, weapon = "rifle", pack = true, plates = false, face = false }) {
+  const beltC = 0x4a4438, vestC = vest ?? darker(cloth, 0.55);
   const parts = [
-    part(BOX, 0x8f8060, [0, 0.74, 0], [0, 0, 0], [0.42 * bulk, 0.16, 0.28]),              // ceinture
+    part(BOX, beltC, [0, 0.76, 0], [0, 0, 0], [0.44 * bulk, 0.13, 0.3]),                  // ceinturon
+    part(BOX, 0xc9c2ae, [0, 0.76, -0.16], [0, 0, 0], [0.09, 0.07, 0.03]),                 // boucle
     part(BOX, cloth, [0, 1.07, 0], [0.06, 0, 0], [0.52 * bulk, 0.54, 0.32]),              // veste
+    part(BOX, darker(cloth, 0.75), [0, 1.41, 0.02], [0.06, 0, 0], [0.3, 0.09, 0.26]),     // col
+    part(BOX, vestC, [0.33 * bulk, 1.37, -0.02], [0, 0, 0.12], [0.18, 0.1, 0.24]),        // épaulette D
+    part(BOX, vestC, [-0.33 * bulk, 1.37, -0.02], [0, 0, -0.12], [0.18, 0.1, 0.24]),      // épaulette G
     part(BOX, cloth, [0.3 * bulk, 1.26, -0.13], [-0.9, 0, -0.2], [0.15, 0.34, 0.15]),     // bras D haut
     part(BOX, cloth, [-0.3 * bulk, 1.26, -0.13], [-0.9, 0, 0.2], [0.15, 0.34, 0.15]),     // bras G haut
     part(BOX, SKIN, [0.22 * bulk, 1.16, -0.38], [-1.2, 0, 0], [0.11, 0.2, 0.11]),         // avant-bras D
@@ -279,13 +289,22 @@ function soldierGeo({ cloth, vest, cap, bulk = 1, weapon = "rifle", pack = true,
     part(SPH, SKIN, [0, 1.54, 0], [0, 0, 0], [0.18, 0.19, 0.18]),                         // tête
     ...weaponParts(weapon, cloth),
   ];
+  if (face) parts.push(
+    part(SPH, 0x1c1c1c, [0.07, 1.57, -0.16], [0, 0, 0], [0.035, 0.035, 0.035]),           // yeux
+    part(SPH, 0x1c1c1c, [-0.07, 1.57, -0.16], [0, 0, 0], [0.035, 0.035, 0.035]));
   if (vest != null) parts.push(
     part(BOX, vest, [0, 1.06, -0.05], [0.06, 0, 0], [0.56 * bulk, 0.4, 0.3]),             // gilet avant
+    part(BOX, darker(vest, 0.75), [0.12 * bulk, 0.97, -0.23], [0.06, 0, 0], [0.13, 0.14, 0.07]),  // poches
+    part(BOX, darker(vest, 0.75), [-0.12 * bulk, 0.97, -0.23], [0.06, 0, 0], [0.13, 0.14, 0.07]),
+    part(BOX, darker(vest, 0.75), [0, 1.16, -0.24], [0.06, 0, 0], [0.16, 0.12, 0.06]),    // poche radio
     part(BOX, vest, [0, 1.18, 0.2], [0, 0, 0], [0.5 * bulk, 0.3, 0.14]));                 // dosseret
   if (cap != null) parts.push(
-    part(SPH, cap, [0, 1.62, 0], [0, 0, 0], [0.2, 0.13, 0.2]),                            // béret/casque
-    part(BOX, cap, [0, 1.56, -0.16], [0.2, 0, 0], [0.3, 0.05, 0.14]));                    // visière
-  if (pack) parts.push(part(BOX, vest ?? 0x6e6248, [0, 1.1, 0.3], [0, 0, 0], [0.34, 0.42, 0.18]));
+    part(SPH, cap, [0, 1.62, 0], [0, 0, 0], [0.21, 0.14, 0.21]),                          // casquette
+    part(BOX, cap, [0, 1.57, -0.17], [0.2, 0, 0], [0.3, 0.05, 0.15]),                     // visière
+    part(BOX, darker(cap, 0.7), [0, 1.55, 0.05], [0, 0, 0], [0.3, 0.07, 0.3]));           // tour de tête
+  if (pack) parts.push(
+    part(BOX, vestC, [0, 1.06, 0.31], [0, 0, 0], [0.36, 0.4, 0.18]),                      // sac à dos
+    part(CYL, darker(vestC, 0.75), [0, 1.32, 0.31], [0, 0, Math.PI / 2], [0.08, 0.3, 0.08]));// rouleau
   if (plates) parts.push(
     part(BOX, 0x55595e, [0.36 * bulk, 1.36, 0], [0, 0, 0.3], [0.22, 0.13, 0.32]),
     part(BOX, 0x55595e, [-0.36 * bulk, 1.36, 0], [0, 0, -0.3], [0.22, 0.13, 0.32]));
@@ -350,7 +369,11 @@ function trikeGeo() {
   ]);
 }
 
-const legGeo = part(CAP, 0xffffff, [0, -0.27, 0], [0, 0, 0], [0.1, 0.17, 0.1]);
+// Jambe : cuisse teintée par instance + botte sombre, pivot à la hanche
+const legGeo = mergeGeometries([
+  part(CAP, 0xffffff, [0, -0.24, 0], [0, 0, 0], [0.1, 0.15, 0.1]),
+  part(BOX, 0x303338, [0, -0.52, -0.04], [0, 0, 0], [0.13, 0.13, 0.22]),
+]);
 
 // ---------- Pools instanciés ----------
 function makeInstanced(geo, mat, n) {
@@ -377,11 +400,11 @@ const PLATE_COLORS = [null, new THREE.Color(0x9aa2ab), new THREE.Color(0xd5dbe2)
 // Ennemis individuels : humains + dinosaures (beast)
 const FOE_TYPES = {
   runner:  { hpMul: 0.5, sp: 2.2, scale: 0.9, loss: h => 2, cap: 50, radius: 0.7,
-             geo: soldierGeo({ cloth: 0xe8554a, vest: null, cap: null, weapon: "pistol", pack: false }) },
+             geo: soldierGeo({ cloth: 0xe8554a, vest: null, cap: null, weapon: "pistol", pack: false, face: true }) },
   soldier: { hpMul: 1, sp: 1, scale: 1, loss: h => Math.round(h / 4), cap: 80, radius: 0.75,
-             geo: soldierGeo({ cloth: 0xd23b2f, vest: 0x5e3a32, cap: 0x7e2a24, weapon: "rifle" }) },
+             geo: soldierGeo({ cloth: 0xd23b2f, vest: 0x5e3a32, cap: 0x7e2a24, weapon: "rifle", face: true }) },
   brute:   { hpMul: 3.4, sp: 0.55, scale: 1.45, loss: h => Math.round(h / 3), cap: 30, radius: 1.1,
-             geo: soldierGeo({ cloth: 0x8c2b24, vest: 0x4a4e54, cap: 0x3a3d42, bulk: 1.5, weapon: "minigun", plates: true }) },
+             geo: soldierGeo({ cloth: 0x8c2b24, vest: 0x4a4e54, cap: 0x3a3d42, bulk: 1.5, weapon: "minigun", plates: true, face: true }) },
   raptor:  { hpMul: 1.7, sp: 2.6, scale: 1, loss: h => 8, cap: 24, radius: 0.9,
              beast: true, barH: 2.2, color: 0xa8743e, geo: raptorGeo() },
   trike:   { hpMul: 13, sp: 0.8, scale: 1.1, loss: h => 22, cap: 8, radius: 2.1,
@@ -556,7 +579,7 @@ const sOver = () => { tone(440, 0.18, "square", 0.2); tone(330, 0.18, "square", 
 // ---------- État ----------
 const G = {
   state: "menu", t: 0, meters: 0, count: 5, kills: 0, maxCount: 5,
-  squadX: 0, targetX: 0,
+  squadX: 0, targetX: 0, stepPhase: 0, moveAmt: 0, stepDir: 1,
   tier: 0, dmgMul: 1, rateMul: 1, armor: 0,
   gates: [], foes: [], bullets: [], parts: [], texts: [], crates: [], walls: [], pickups: [],
   gateTimer: 1.4, foeTimer: 2.0, hordeTimer: 8, monsterTimer: 22, crateTimer: 5, wallTimer: 16, pickupTimer: 14, volleyTimer: 0,
@@ -649,7 +672,7 @@ function removeGate(g) {
   scene.remove(g.mesh);
 }
 
-function spawnGatePair() {
+function spawnGatePair(z = SPAWN_Z) {
   const t = G.t;
   const base = 2.5 + t * 0.35;
   const rnd = (a, b) => a + Math.random() * (b - a);
@@ -670,8 +693,8 @@ function spawnGatePair() {
   let b = t < 10 ? mkGood(false) : (Math.random() < 0.85 ? mkBad() : mkGood(false));
   if (Math.random() < 0.5) [a, b] = [b, a];
   const id = ++G.pairSeq;
-  const ga = { ...a, pair: id, x: -LANE_HALF / 2, z: SPAWN_Z, done: false };
-  const gb = { ...b, pair: id, x: LANE_HALF / 2, z: SPAWN_Z, done: false };
+  const ga = { ...a, pair: id, x: -LANE_HALF / 2, z, done: false };
+  const gb = { ...b, pair: id, x: LANE_HALF / 2, z, done: false };
   makeGateMesh(ga); makeGateMesh(gb);
   G.gates.push(ga, gb);
 }
@@ -692,9 +715,9 @@ function spawnFoe(type, x, z, hpMul = 1) {
   if (T.chomp) sRoar();
 }
 // Colonne de soldats qui marchent vers nous (comme la vidéo)
-function spawnColumn(type, x, n) {
+function spawnColumn(type, x, n, zBase = SPAWN_Z) {
   for (let i = 0; i < n; i++)
-    spawnFoe(type, x + (Math.random() - 0.5) * 1.4, SPAWN_Z - i * 3 - Math.random() * 1.5);
+    spawnFoe(type, x + (Math.random() - 0.5) * 1.4, zBase - i * 3 - Math.random() * 1.5);
 }
 function pickFoeType(t) {
   const r = Math.random();
@@ -797,7 +820,7 @@ function applyBonus(g) {
   if (g.op === "x") { G.count *= g.v; str = "x" + g.v; }
   if (g.op === "-") { G.count -= g.v; str = "-" + g.v; }
   if (g.op === "/") { G.count = Math.floor(G.count / g.v); str = "÷" + g.v; }
-  if (g.op === "dmg") { G.dmgMul *= 1 + g.v / 100; str = `DÉGÂTS +${g.v}%`; }
+  if (g.op === "dmg") { G.dmgMul = Math.min(4, G.dmgMul * (1 + g.v / 100)); str = `DÉGÂTS +${g.v}%`; }
   if (g.op === "rate") { G.rateMul = Math.min(2.4, G.rateMul * (1 + g.v / 100)); str = `CADENCE +${g.v}%`; }
   if (g.op === "arm") { G.armor = Math.min(3, G.armor + 1); str = "ARMURE ↑"; }
   if (g.op === "wpn") { G.tier = Math.min(2, G.tier + 1); str = TIERS[G.tier].name + " !"; sWeapon(); }
@@ -831,7 +854,14 @@ function update(dt) {
   if (keys.has("ArrowLeft")) G.targetX -= 22 * dt;
   if (keys.has("ArrowRight")) G.targetX += 22 * dt;
   G.targetX = Math.max(-LANE_HALF + 1.2, Math.min(LANE_HALF - 1.2, G.targetX));
+  const prevX = G.squadX;
   G.squadX += (G.targetX - G.squadX) * Math.min(1, dt * 12);
+  // Pas chassé : intensité et cadence pilotées par la vitesse latérale
+  const vx = (G.squadX - prevX) / dt;
+  G.stepDir = vx < 0 ? -1 : 1;
+  G.stepPhase += Math.abs(vx) * dt * 2.4;
+  const moveTarget = Math.min(1, Math.abs(vx) / 7);
+  G.moveAmt += (moveTarget - G.moveAmt) * Math.min(1, dt * 10);
 
   // Spawns
   if ((G.gateTimer -= dt) <= 0) { G.gateTimer = gateIv(t); spawnGatePair(); }
@@ -1067,18 +1097,22 @@ function update(dt) {
 
 // ---------- Rendu ----------
 let legCursor = 0;
-function placeHumanoid(mesh, idx, x, z, scale, phase, lean, legColor) {
+/* mode "walk" (ennemis) : jambes qui courent vers l'avant.
+   mode "side" (squad) : pas chassé latéral, seulement quand on se déplace. */
+function placeHumanoid(mesh, idx, x, z, scale, phase, lean, legColor, side = null) {
   const swing = Math.sin(phase);
-  const bob = Math.abs(Math.cos(phase)) * 0.07 * scale;
+  const amt = side ? side.amt : 1;
+  const bob = Math.abs(Math.cos(phase)) * 0.07 * scale * amt;
   dummy.position.set(x, bob, z);
-  dummy.rotation.set(lean, 0, 0);
+  dummy.rotation.set(lean, 0, side ? side.lean : 0);
   dummy.scale.setScalar(scale);
   dummy.updateMatrix();
   mesh.setMatrixAt(idx, dummy.matrix);
   for (const s of [-1, 1]) {
     if (legCursor >= 800) return;
     dummy.position.set(x + s * 0.13 * scale, 0.72 * scale + bob, z);
-    dummy.rotation.set(swing * 0.75 * s, 0, 0);
+    if (side) dummy.rotation.set(0, 0, swing * 0.55 * s * amt + side.lean);
+    else dummy.rotation.set(swing * 0.75 * s, 0, 0);
     dummy.scale.setScalar(scale);
     dummy.updateMatrix();
     legsMesh.setMatrixAt(legCursor, dummy.matrix);
@@ -1096,11 +1130,11 @@ function render(now) {
   const visible = Math.min(G.count, 80);
   for (let ti = 0; ti < allyMeshes.length; ti++) allyMeshes[ti].count = ti === G.tier ? visible : 0;
   const am = allyMeshes[G.tier];
-  const running = G.state === "playing";
+  const side = { amt: G.moveAmt || 0, lean: -(G.stepDir || 1) * 0.1 * (G.moveAmt || 0) };
   for (let i = 0; i < visible; i++) {
     const o = SLOTS[i];
     placeHumanoid(am, i, G.squadX + o.x, SQUAD_Z + o.z, 1,
-      running ? now * 0.014 + i * 1.3 : 0, 0.08, LEG_ALLY);
+      (G.stepPhase || 0) + i * 0.9, 0.08, LEG_ALLY, side);
     if (G.armor > 0 && i < 80) {
       dummy.position.set(G.squadX + o.x, 0, SQUAD_Z + o.z);
       dummy.rotation.set(0.08, 0, 0);
@@ -1203,7 +1237,7 @@ function reset() {
   clearWorld();
   Object.assign(G, {
     t: 0, meters: 0, count: 5, kills: 0, maxCount: 5,
-    squadX: 0, targetX: 0,
+    squadX: 0, targetX: 0, stepPhase: 0, moveAmt: 0, stepDir: 1,
     tier: 0, dmgMul: 1, rateMul: 1, armor: 0,
     gateTimer: 1.4, foeTimer: 2.0, hordeTimer: 8, monsterTimer: 22, crateTimer: 5, wallTimer: 16, pickupTimer: 14, volleyTimer: 0,
     shake: 0, pairSeq: 0,
@@ -1215,6 +1249,14 @@ function startGame() {
   audioInit();
   reset();
   G.state = "playing";
+  // Monde pré-rempli : première porte à ~3 s, premiers ennemis tout de suite visibles
+  spawnGatePair(-70);
+  spawnGatePair(-150);
+  spawnColumn("soldier", randX(), 3, -100);
+  spawnColumn("runner", randX(), 2, -60);
+  spawnCrate(randX(), "crate");
+  G.crates[G.crates.length - 1].z = -120;
+  G.crates[G.crates.length - 1].mesh.position.z = -120;
   el("menu").classList.add("hidden");
   el("over").classList.add("hidden");
   el("hud").classList.remove("hidden");
