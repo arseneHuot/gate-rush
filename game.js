@@ -13,8 +13,8 @@ const KILL_Z = 14;
 
 // ---------- Difficulté : montée progressive, mur vers 2-3 minutes ----------
 const scrollSpeed = t => 24 + Math.min(46, t * 0.3);    // vitesse d'approche du décor
-const unitHp      = t => 2 + Math.pow(t, 1.5) / 7;
-const enemyIv     = t => Math.max(0.3, 1.5 - t * 0.012);
+const unitHp      = t => 2 + Math.pow(t, 1.5) / 7.5;
+const enemyIv     = t => Math.max(0.28, 1.5 - t * 0.013);
 const gateIv      = t => Math.max(2.2, 3.6 - t * 0.022);
 const baseDPS     = c => 6 + c * 2.4;
 
@@ -27,8 +27,12 @@ const TIERS = [
   { name: "BAZOOKA", dmgMul: 2.1, rate: 3,  bullet: 2, bsp: 55,  streamsMax: 2, flash: 0xff7a2e, aoe: { r: 3.6, f: 1 }, homing: true },
   { name: "LASER",   dmgMul: 3,   rate: 16, bullet: 3, bsp: 150, streamsMax: 6, flash: 0xff2e4d },
   { name: "PLASMA",  dmgMul: 4.2, rate: 10, bullet: 4, bsp: 80,  streamsMax: 5, flash: 0x4dff7a, aoe: { r: 2.4, f: 0.5 } },
+  { name: "RAILGUN", dmgMul: 5,   rate: 4,  bullet: 6, bsp: 220, streamsMax: 3, flash: 0x9fd9ff, pierce: 6 },
   { name: "TANK",    dmgMul: 6,   rate: 6,  bullet: 5, bsp: 115, streamsMax: 4, flash: 0xffd84d, aoe: { r: 3, f: 0.8 }, tank: true },
+  { name: "AVIONS",  dmgMul: 9,   rate: 14, bullet: 7, bsp: 160, streamsMax: 6, flash: 0x6fd9ff, aoe: { r: 2, f: 0.4 }, jet: true },
 ];
+// Les avions de chasse ne se débloquent qu'après 3000 m
+const maxTierNow = () => G.meters >= 3000 ? TIERS.length - 1 : TIERS.length - 2;
 
 // ---------- Scène ----------
 const cvs = document.getElementById("game");
@@ -275,6 +279,14 @@ function weaponParts(kind, cloth) {
     part(SPH, 0x4dff7a, [at[0] - 0.1, at[1] + 0.04, at[2] + 0.05], [0, 0, 0], [0.07, 0.07, 0.07]),
     part(CYL, 0x4dff7a, [at[0], at[1], at[2] - 0.4], [Math.PI / 2, 0, 0], [0.05, 0.18, 0.05]),
   ];
+  if (kind === "railgun") return [
+    // long rail à bobines, lueur bleutée
+    part(BOX, 0x1f2933, at, [0, 0, 0], [0.1, 0.14, 0.95]),
+    part(CYL, 0x9fd9ff, [at[0], at[1], at[2] - 0.2], [Math.PI / 2, 0, 0], [0.09, 0.08, 0.09]),
+    part(CYL, 0x9fd9ff, [at[0], at[1], at[2] - 0.4], [Math.PI / 2, 0, 0], [0.09, 0.08, 0.09]),
+    part(CYL, 0x9fd9ff, [at[0], at[1], at[2] - 0.6], [Math.PI / 2, 0, 0], [0.09, 0.08, 0.09]),
+    part(BOX, cloth, [at[0], at[1] - 0.05, at[2] + 0.4], [0, 0, 0], [0.08, 0.15, 0.16]),
+  ];
   // fusil d'assaut : corps, canon, crosse, chargeur, viseur
   return [
     part(BOX, metal, at, [0, 0, 0], [0.1, 0.14, 0.74]),
@@ -408,8 +420,8 @@ const vcMat = () => new THREE.MeshLambertMaterial({ vertexColors: true });
 
 // Squad bleue (veste bleu vif, gilet kaki, casquette bleue — comme la vidéo)
 const ALLY_STYLE = { cloth: 0x2e8de0, vest: 0x8a7a55, cap: 0x1f6fd0 };
-const allyMeshes = TIERS.map((t, i) => t.tank ? null : makeInstanced(
-  soldierGeo({ ...ALLY_STYLE, weapon: ["rifle", "minigun", "bazooka", "laser", "plasma"][i] }), vcMat(), 80));
+const allyMeshes = TIERS.map((t, i) => (t.tank || t.jet) ? null : makeInstanced(
+  soldierGeo({ ...ALLY_STYLE, weapon: ["rifle", "minigun", "bazooka", "laser", "plasma", "railgun"][i] }), vcMat(), 80));
 
 // Char d'assaut (palier ultime : la squad se transforme en tanks)
 const tankGeo = mergeGeometries([
@@ -423,6 +435,20 @@ const tankGeo = mergeGeometries([
   part(BOX, 0x1d3f7a, [0.3, 1.12, 0.2], [0, 0, 0], [0.22, 0.1, 0.22]),    // écoutille
 ]);
 const tankMesh = makeInstanced(tankGeo, vcMat(), 40);
+
+// Avion de chasse (palier mythique après 3000 m)
+const jetGeo = mergeGeometries([
+  part(CAP, 0x2e5f9e, [0, 0, 0.1], [Math.PI / 2, 0, 0], [0.3, 1.5, 0.3]),         // fuselage
+  part(CONE, 0x1d3f7a, [0, 0, -1.15], [-Math.PI / 2, 0, 0], [0.28, 0.7, 0.28]),   // nez
+  part(SPH, 0xbfe3ff, [0, 0.26, -0.45], [0, 0, 0], [0.18, 0.14, 0.3]),            // verrière
+  part(BOX, 0x3b82f6, [0.85, 0, 0.25], [0, -0.45, 0], [1.5, 0.07, 0.6]),          // aile D en flèche
+  part(BOX, 0x3b82f6, [-0.85, 0, 0.25], [0, 0.45, 0], [1.5, 0.07, 0.6]),          // aile G
+  part(BOX, 0x1d3f7a, [0, 0.32, 0.85], [0.5, 0, 0], [0.07, 0.55, 0.4]),           // dérive
+  part(BOX, 0x3b82f6, [0.35, 0, 0.95], [0, -0.3, 0], [0.55, 0.06, 0.3]),          // empennage D
+  part(BOX, 0x3b82f6, [-0.35, 0, 0.95], [0, 0.3, 0], [0.55, 0.06, 0.3]),          // empennage G
+  part(CYL, 0xff9d2e, [0, 0, 1.02], [Math.PI / 2, 0, 0], [0.14, 0.1, 0.14]),      // tuyère
+]);
+const jetMesh = makeInstanced(jetGeo, vcMat(), 24);
 // Plastron d'armure (upgrade personnage, visible sur chaque soldat)
 const plateMesh = makeInstanced(
   part(BOX, 0xffffff, [0, 1.1, -0.26], [0.06, 0, 0], [0.5, 0.44, 0.08]), vcMat(), 80);
@@ -431,13 +457,13 @@ const PLATE_COLORS = [null, new THREE.Color(0x9aa2ab), new THREE.Color(0xd5dbe2)
 
 // Ennemis individuels : humains + dinosaures (beast)
 const FOE_TYPES = {
-  runner:  { hpMul: 0.5, sp: 2.2, scale: 0.9, loss: h => 2, cap: 50, radius: 0.7,
+  runner:  { hpMul: 0.5, sp: 2.2, scale: 0.9, loss: h => 2, cap: 70, radius: 0.7,
              geo: soldierGeo({ cloth: 0xe8554a, vest: null, cap: null, weapon: "pistol", pack: false, face: true }) },
-  soldier: { hpMul: 1, sp: 1, scale: 1, loss: h => Math.round(h / 4), cap: 80, radius: 0.75,
+  soldier: { hpMul: 1, sp: 1, scale: 1, loss: h => Math.round(h / 4), cap: 100, radius: 0.75,
              geo: soldierGeo({ cloth: 0xd23b2f, vest: 0x5e3a32, cap: 0x7e2a24, weapon: "rifle", face: true }) },
-  brute:   { hpMul: 3.4, sp: 0.55, scale: 1.45, loss: h => Math.round(h / 3), cap: 30, radius: 1.1,
+  brute:   { hpMul: 3.4, sp: 0.55, scale: 1.45, loss: h => Math.round(h / 3), cap: 40, radius: 1.1,
              geo: soldierGeo({ cloth: 0x8c2b24, vest: 0x4a4e54, cap: 0x3a3d42, bulk: 1.5, weapon: "minigun", plates: true, face: true }) },
-  raptor:  { hpMul: 1.7, sp: 2.6, scale: 1, loss: h => 8, cap: 24, radius: 0.9,
+  raptor:  { hpMul: 1.7, sp: 2.6, scale: 1, loss: h => 8, cap: 30, radius: 0.9,
              beast: true, barH: 2.2, color: 0xa8743e, geo: raptorGeo() },
   trike:   { hpMul: 13, sp: 0.8, scale: 1.1, loss: h => 22, cap: 8, radius: 2.1,
              beast: true, chomp: true, barH: 3.3, color: 0x7d8568, geo: trikeGeo() },
@@ -473,6 +499,10 @@ const bulletMeshes = [
   makeInstanced(new THREE.SphereGeometry(0.3, 8, 8), new THREE.MeshBasicMaterial({ color: 0x4dff7a }), 400),
   // TANK : obus traçant épais
   makeInstanced(new THREE.CapsuleGeometry(0.16, 0.8, 2, 6).rotateX(Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xffc24a }), 400),
+  // RAILGUN : très long trait perforant bleu-blanc
+  makeInstanced(new THREE.CapsuleGeometry(0.05, 3.2, 2, 6).rotateX(Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xc9ecff }), 200),
+  // AVIONS : traceurs bleus rapides
+  makeInstanced(new THREE.CapsuleGeometry(0.09, 0.9, 2, 6).rotateX(Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x6fd9ff }), 400),
 ];
 
 const partMesh = makeInstanced(
@@ -481,7 +511,7 @@ const partMesh = makeInstanced(
 partMesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(300 * 3), 3);
 
 // Barres de vie instanciées (mode immédiat : reconstruites chaque frame)
-const BAR_CAP = 140;
+const BAR_CAP = 180;
 const barBG = makeInstanced(new THREE.PlaneGeometry(1, 0.2),
   new THREE.MeshBasicMaterial({ color: 0x57606a, depthTest: false, transparent: true }), BAR_CAP);
 const barFG = makeInstanced(new THREE.PlaneGeometry(1, 0.2),
@@ -531,6 +561,20 @@ const pickupGeo = mergeGeometries([
   part(BOX, 0xffffff, [0, -0.22, -0.1], [0.25, 0, 0], [0.11, 0.3, 0.16]),
 ]);
 const pickupMat = new THREE.MeshBasicMaterial({ color: 0xffe24a });
+// Drapeau de renfort bleu : passe dessus pour gagner des soldats
+const flagGeo = mergeGeometries([
+  part(CYL, 0xd8d2c2, [0, 0, 0], [0, 0, 0], [0.05, 2.4, 0.05]),
+  part(BOX, 0x2f8bff, [0.55, 0.78, 0], [0, 0, 0], [1.05, 0.7, 0.06]),
+  part(SPH, 0xffd84d, [0, 1.26, 0], [0, 0, 0], [0.1, 0.1, 0.1]),
+]);
+const flagMat = new THREE.MeshBasicMaterial({ vertexColors: true });
+// Mine : à faire sauter de loin, sinon elle explose sous la squad
+const mineGeo = mergeGeometries([
+  part(CYL, 0x2c2f33, [0, 0.12, 0], [0, 0, 0], [0.55, 0.24, 0.55]),
+  part(SPH, 0xff3030, [0, 0.3, 0], [0, 0, 0], [0.12, 0.12, 0.12]),
+  part(BOX, 0x4a4e54, [0, 0.05, 0], [0, 0, 0], [0.85, 0.1, 0.85]),
+]);
+const mineMat = new THREE.MeshBasicMaterial({ vertexColors: true });
 
 // ---------- Sprites texte ----------
 function textSprite(str, color, fontPx = 90, outline = true) {
@@ -568,7 +612,7 @@ function updateBadge(count, x) {
     scene.add(badge);
     badgeVal = count;
   }
-  badge.position.set(x, 3.1, SQUAD_Z + 1.2);
+  badge.position.set(x, TIERS[G.tier].jet ? 5.4 : 3.1, SQUAD_Z + 1.2);
 }
 
 // ---------- Audio ----------
@@ -632,7 +676,7 @@ const G = {
   squadX: 0, targetX: 0, stepPhase: 0, moveAmt: 0, stepDir: 1,
   tier: 0, dmgMul: 1, rateMul: 1, armor: 0,
   gates: [], foes: [], bullets: [], parts: [], texts: [], crates: [], walls: [], pickups: [],
-  gateTimer: 1.4, foeTimer: 2.0, hordeTimer: 8, monsterTimer: 22, crateTimer: 5, wallTimer: 16, pickupTimer: 6, volleyTimer: 0,
+  gateTimer: 1.4, foeTimer: 2.0, hordeTimer: 8, monsterTimer: 22, crateTimer: 5, wallTimer: 16, pickupTimer: 6, flagTimer: 15, mineTimer: 14, volleyTimer: 0,
   shake: 0, pairSeq: 0,
 };
 const dpsNow = () => baseDPS(G.count) * TIERS[G.tier].dmgMul * G.dmgMul;
@@ -724,7 +768,7 @@ function removeGate(g) {
 
 function spawnGatePair(z = SPAWN_Z) {
   const t = G.t;
-  const base = 2.5 + t * 0.35;
+  const base = 2.5 + t * 0.5; // les portes suivent l'attrition de fin de partie
   const rnd = (a, b) => a + Math.random() * (b - a);
   const mkGood = big => {
     const r = Math.random();
@@ -751,7 +795,7 @@ function spawnGatePair(z = SPAWN_Z) {
 
 // ---------- Ennemis individuels ----------
 function spawnFoe(type, x, z, hpMul = 1) {
-  if (G.foes.length > 90) return;
+  if (G.foes.length > 130) return;
   const T = FOE_TYPES[type];
   const hp = unitHp(G.t) * T.hpMul * hpMul;
   G.foes.push({
@@ -789,11 +833,12 @@ function spawnCrate(x, kind = "crate") {
   const t = G.t;
   const c = {
     kind, x, z: SPAWN_Z + Math.random() * 10,
-    hp: kind === "barrel" ? unitHp(t) * 1.5 : unitHp(t) * 3.5,
+    hp: kind === "barrel" ? unitHp(t) * 1.5 : kind === "mine" ? unitHp(t) * 1.2 : unitHp(t) * 3.5,
     reward: kind === "crate" ? crateReward(t) : null,
   };
   c.maxHp = c.hp;
-  c.mesh = new THREE.Mesh(kind === "barrel" ? barrelGeo : crateGeo, kind === "barrel" ? barrelMat : crateMat);
+  const geos = { barrel: [barrelGeo, barrelMat], mine: [mineGeo, mineMat], crate: [crateGeo, crateMat] };
+  c.mesh = new THREE.Mesh(geos[kind][0], geos[kind][1]);
   c.mesh.position.set(x, 0, c.z);
   c.mesh.rotation.y = Math.random() * 0.8;
   scene.add(c.mesh);
@@ -832,11 +877,14 @@ function explodeBarrel(c) {
     }
   }
 }
-// Arme dorée à ramasser (passe dessus pour l'équiper)
-function spawnPickup() {
-  const p = { x: randX(), z: SPAWN_Z, mesh: new THREE.Mesh(pickupGeo, pickupMat) };
-  p.mesh.position.set(p.x, 1.6, p.z);
-  p.mesh.scale.setScalar(2);
+// Objets à ramasser : arme dorée (palier suivant) ou drapeau de renfort (+soldats)
+function spawnPickup(kind = "weapon") {
+  const p = {
+    kind, x: randX(), z: SPAWN_Z,
+    mesh: kind === "flag" ? new THREE.Mesh(flagGeo, flagMat) : new THREE.Mesh(pickupGeo, pickupMat),
+  };
+  p.mesh.position.set(p.x, kind === "flag" ? 1.2 : 1.6, p.z);
+  p.mesh.scale.setScalar(kind === "flag" ? 1.6 : 2);
   scene.add(p.mesh);
   G.pickups.push(p);
 }
@@ -873,7 +921,7 @@ function applyBonus(g) {
   if (g.op === "dmg") { G.dmgMul = Math.min(4, G.dmgMul * (1 + g.v / 100)); str = `DÉGÂTS +${g.v}%`; }
   if (g.op === "rate") { G.rateMul = Math.min(2.4, G.rateMul * (1 + g.v / 100)); str = `CADENCE +${g.v}%`; }
   if (g.op === "arm") { G.armor = Math.min(3, G.armor + 1); str = "ARMURE ↑"; }
-  if (g.op === "wpn") { G.tier = Math.min(TIERS.length - 1, G.tier + 1); str = TIERS[G.tier].name + " !"; sWeapon(); }
+  if (g.op === "wpn") { G.tier = Math.min(maxTierNow(), G.tier + 1); str = TIERS[G.tier].name + " !"; sWeapon(); }
   if (G.count > 999) { G.count = 999; str = "MAX"; }
   G.maxCount = Math.max(G.maxCount, G.count);
   ftext(str, isUpgrade(g) ? "#ffd84d" : good ? "#5fb6ff" : "#ff5f6b", good);
@@ -919,7 +967,8 @@ function hitSquad(loss) {
 // ---------- Update ----------
 function update(dt) {
   const t = (G.t += dt);
-  const scroll = scrollSpeed(t);
+  // Après 3000 m, la vitesse s'emballe
+  const scroll = scrollSpeed(t) + (G.meters > 3000 ? Math.min(45, (G.meters - 3000) * 0.02) : 0);
   G.meters += scroll * dt * 0.5;
 
   if (keys.has("ArrowLeft")) G.targetX -= 22 * dt;
@@ -939,21 +988,23 @@ function update(dt) {
   if ((G.foeTimer -= dt) <= 0) {
     G.foeTimer = enemyIv(t);
     const type = pickFoeType(t);
-    if (type === "soldier") spawnColumn("soldier", randX(), Math.min(10, 2 + Math.floor(t / 14)));
+    if (type === "soldier") spawnColumn("soldier", randX(), Math.min(12, 2 + Math.floor(t / 12)));
     else if (type === "runner") spawnColumn("runner", randX(), 1 + Math.floor(Math.random() * 3));
     else spawnFoe("brute", randX(), SPAWN_Z);
+    // colonne d'appoint : densité visuelle
+    if (t > 15 && Math.random() < 0.35) spawnColumn("soldier", randX(), 2 + Math.floor(Math.random() * 3));
     if (t > 8 && Math.random() < 0.18) spawnCrate(randX(), "barrel");
   }
   if (t > 10 && (G.hordeTimer -= dt) <= 0) {
-    G.hordeTimer = Math.max(3.2, 8 - t * 0.025);
-    const k = 4 + Math.floor(t / 22);
+    G.hordeTimer = Math.max(3, 7.5 - t * 0.03);
+    const k = 4 + Math.floor(t / 18);
     for (let i = 0; i < k; i++)
       spawnFoe(Math.random() < 0.3 ? "runner" : "soldier",
         -LANE_HALF + 1.8 + (i + 0.5) * (LANE_HALF * 2 - 3.6) / k, SPAWN_Z - Math.random() * 6, 0.9);
   }
   // Événements monstres : meute de raptors, tricératops ou T-Rex boss
   if (t > 20 && (G.monsterTimer -= dt) <= 0) {
-    G.monsterTimer = Math.max(7, 15 - t * 0.03);
+    G.monsterTimer = Math.max(6.5, 14 - t * 0.04);
     const r = Math.random();
     if (r < 0.42) {
       const n = 2 + Math.floor(Math.random() * 2 + t / 35);
@@ -971,7 +1022,13 @@ function update(dt) {
     if (Math.random() < 0.3) spawnCrate(randX(), "crate");
   }
   if (t > 16 && (G.wallTimer -= dt) <= 0) { G.wallTimer = 12 + Math.random() * 5; spawnWall(); }
-  if (G.tier < TIERS.length - 1 && (G.pickupTimer -= dt) <= 0) { G.pickupTimer = 6 + Math.random() * 2; spawnPickup(); }
+  if (G.tier < maxTierNow() && (G.pickupTimer -= dt) <= 0) { G.pickupTimer = 6 + Math.random() * 2; spawnPickup("weapon"); }
+  if (t > 12 && (G.flagTimer -= dt) <= 0) { G.flagTimer = 13 + Math.random() * 6; spawnPickup("flag"); }
+  if (t > 12 && (G.mineTimer -= dt) <= 0) {
+    G.mineTimer = Math.max(6, 11 - t * 0.02);
+    spawnCrate(randX(), "mine");
+    if (Math.random() < 0.4) spawnCrate(randX(), "mine");
+  }
 
   // Tir automatique
   if ((G.volleyTimer -= dt) <= 0) {
@@ -980,9 +1037,10 @@ function update(dt) {
     const streams = Math.max(1, Math.min(W.streamsMax, Math.ceil(G.count / 4)));
     const dmg = dpsNow() / volleyRate() / streams;
     const spread = Math.min(squadRadius(), 2.6);
+    const fy = W.jet ? 2.6 : 1.4;
     for (let i = 0; i < streams && G.bullets.length < 380; i++) {
       const fx = G.squadX + (streams === 1 ? 0 : (i / (streams - 1) - 0.5) * 2 * spread);
-      G.bullets.push({ x: fx, y: 1.4, z: SQUAD_Z - 1.5, dmg, tier: G.tier });
+      G.bullets.push({ x: fx, y: fy, z: SQUAD_Z - 1.5, dmg, tier: G.tier });
     }
     if (W.name === "BAZOOKA") tone(80, 0.2, "sawtooth", 0.22, 0, -40); // départ de missile
     // Gerbes de bouche aux couleurs de l'arme
@@ -1056,7 +1114,11 @@ function update(dt) {
         removeCrate(c);
         G.crates.splice(j, 1);
         if (c.kind === "barrel") explodeBarrel(c);
-        else {
+        else if (c.kind === "mine") {
+          // mine détruite à distance : elle saute et blesse les ennemis proches
+          blast(c.x, c.z, unitHp(t) * 10, 5);
+          boom();
+        } else {
           burst(c.x, 1, c.z, 0xc89a55, 18, 10);
           sCrate();
           applyBonus(c.reward);
@@ -1067,9 +1129,16 @@ function update(dt) {
     }
     if (!dead) for (let j = G.foes.length - 1; j >= 0; j--) {
       const f = G.foes[j];
+      if (W.pierce && b.hits && b.hits.includes(f)) continue; // déjà transpercé
       if (Math.abs(b.x - f.x) < f.radius + 0.45 && Math.abs(b.z - f.z) < f.radius + 0.9) {
         f.hp -= b.dmg;
-        dead = true;
+        if (W.pierce) {
+          // le trait du railgun transperce jusqu'à W.pierce ennemis
+          (b.hits = b.hits || []).push(f);
+          if (b.hits.length >= W.pierce) dead = true;
+        } else {
+          dead = true;
+        }
         if (W.aoe) blast(b.x, b.z, b.dmg * W.aoe.f, W.aoe.r, f);
         if (f.hp <= 0) {
           const T = FOE_TYPES[f.type];
@@ -1079,7 +1148,7 @@ function update(dt) {
           const idx = G.foes.indexOf(f); // le blast peut avoir décalé les indices
           if (idx !== -1) G.foes.splice(idx, 1);
         }
-        break;
+        if (dead) break;
       }
     }
     if (dead) { G.bullets[i] = G.bullets[G.bullets.length - 1]; G.bullets.pop(); }
@@ -1111,12 +1180,21 @@ function update(dt) {
     p.mesh.position.y = 1.6 + Math.sin(t * 3 + i) * 0.25;
     p.mesh.rotation.y += dt * 2.5;
     if (p.z > SQUAD_Z - 1 && Math.abs(p.x - G.squadX) < squadRadius() + 1.2) {
-      G.tier = Math.min(TIERS.length - 1, G.tier + 1);
-      ftext(TIERS[G.tier].name + " !", "#ffd84d", true);
-      burst(p.x, 1.6, p.z, 0xffe24a, 22, 12);
-      sWeapon();
-      if (TIERS[G.tier].tank) { boom(); G.shake = 1.2; } // transformation en tanks !
-      refreshWeaponHud();
+      if (p.kind === "flag") {
+        const gain = Math.max(5, Math.round((2.5 + t * 0.5) * 1.2));
+        G.count = Math.min(999, G.count + gain);
+        G.maxCount = Math.max(G.maxCount, G.count);
+        ftext("+" + gain, "#5fb6ff");
+        burst(p.x, 1.6, p.z, 0x2f8bff, 16, 10);
+        sGateGood();
+      } else {
+        G.tier = Math.min(maxTierNow(), G.tier + 1);
+        ftext(TIERS[G.tier].name + " !", "#ffd84d", true);
+        burst(p.x, 1.6, p.z, 0xffe24a, 22, 12);
+        sWeapon();
+        if (TIERS[G.tier].tank || TIERS[G.tier].jet) { boom(); G.shake = 1.2; } // transformation !
+        refreshWeaponHud();
+      }
       scene.remove(p.mesh);
       G.pickups.splice(i, 1);
     } else if (p.z > KILL_Z) {
@@ -1125,12 +1203,23 @@ function update(dt) {
     }
   }
 
-  // Caisses / barils
+  // Caisses / barils / mines
   for (let i = G.crates.length - 1; i >= 0; i--) {
     const c = G.crates[i];
     c.z += scroll * dt;
     c.mesh.position.z = c.z;
-    if (c.z > KILL_Z) { removeCrate(c); G.crates.splice(i, 1); }
+    if (c.kind === "mine" && c.z > SQUAD_Z - 1 && Math.abs(c.x - G.squadX) < squadRadius() * 0.7 + 0.8) {
+      // marché sur une mine !
+      removeCrate(c);
+      G.crates.splice(i, 1);
+      burst(c.x, 1, c.z, 0xff7a2e, 24, 14);
+      boom();
+      hitSquad(Math.min(40, 8 + t * 0.15));
+      if (G.state !== "playing") return;
+    } else if (c.z > KILL_Z) {
+      removeCrate(c);
+      G.crates.splice(i, 1);
+    }
   }
 
   // Barricades
@@ -1230,12 +1319,34 @@ function render(now) {
   barCursor = 0;
   _right.set(1, 0, 0).applyQuaternion(camera.quaternion);
 
-  // Squad : soldats, ou chars d'assaut au palier TANK
+  // Squad : soldats, chars (TANK) ou avions de chasse (AVIONS)
   const isTank = TIERS[G.tier].tank;
-  const visible = Math.min(G.count, isTank ? 40 : 80);
+  const isJet = TIERS[G.tier].jet;
+  const visible = Math.min(G.count, isJet ? 24 : isTank ? 40 : 80);
   for (let ti = 0; ti < allyMeshes.length; ti++) if (allyMeshes[ti]) allyMeshes[ti].count = ti === G.tier ? visible : 0;
   const side = { amt: G.moveAmt || 0, lean: -(G.stepDir || 1) * 0.1 * (G.moveAmt || 0) };
-  if (isTank) {
+  if (isJet) {
+    for (let i = 0; i < visible; i++) {
+      const o = SLOTS[i];
+      dummy.position.set(
+        G.squadX + o.x * 2.6,
+        2.6 + Math.sin(now * 0.005 + i * 1.3) * 0.3,
+        SQUAD_Z + o.z * 2.4);
+      dummy.rotation.set(-0.06, 0, side.lean * 2.2);
+      dummy.scale.setScalar(1);
+      dummy.updateMatrix();
+      jetMesh.setMatrixAt(i, dummy.matrix);
+      // flamme de réacteur sur les premiers avions
+      if (i < 6 && Math.random() < 0.4 && G.parts.length < 290) {
+        G.parts.push({
+          x: G.squadX + o.x * 2.6, y: 2.6 + Math.sin(now * 0.005 + i * 1.3) * 0.3, z: SQUAD_Z + o.z * 2.4 + 1.2,
+          vx: 0, vy: 0.5, vz: 9, life: 0.16, t: 0.16, color: 0xff9d2e,
+        });
+      }
+    }
+    jetMesh.count = visible;
+    tankMesh.count = 0;
+  } else if (isTank) {
     for (let i = 0; i < visible; i++) {
       const o = SLOTS[i];
       dummy.position.set(G.squadX + o.x * 2, Math.abs(Math.sin(now * 0.004 + i)) * 0.05, SQUAD_Z + o.z * 2.1);
@@ -1245,6 +1356,7 @@ function render(now) {
       tankMesh.setMatrixAt(i, dummy.matrix);
     }
     tankMesh.count = visible;
+    jetMesh.count = 0;
   } else {
     const am = allyMeshes[G.tier];
     for (let i = 0; i < visible; i++) {
@@ -1262,9 +1374,11 @@ function render(now) {
     }
     am.instanceMatrix.needsUpdate = true;
     tankMesh.count = 0;
+    jetMesh.count = 0;
   }
   tankMesh.instanceMatrix.needsUpdate = true;
-  plateMesh.count = !isTank && G.armor > 0 ? visible : 0;
+  jetMesh.instanceMatrix.needsUpdate = true;
+  plateMesh.count = !isTank && !isJet && G.armor > 0 ? visible : 0;
   plateMesh.instanceMatrix.needsUpdate = true;
   if (plateMesh.instanceColor) plateMesh.instanceColor.needsUpdate = true;
   if (G.state === "playing") updateBadge(G.count, G.squadX);
@@ -1359,7 +1473,7 @@ function reset() {
     t: 0, meters: 0, count: 5, kills: 0, maxCount: 5,
     squadX: 0, targetX: 0, stepPhase: 0, moveAmt: 0, stepDir: 1,
     tier: 0, dmgMul: 1, rateMul: 1, armor: 0,
-    gateTimer: 1.4, foeTimer: 2.0, hordeTimer: 8, monsterTimer: 22, crateTimer: 5, wallTimer: 16, pickupTimer: 6, volleyTimer: 0,
+    gateTimer: 1.4, foeTimer: 2.0, hordeTimer: 8, monsterTimer: 22, crateTimer: 5, wallTimer: 16, pickupTimer: 6, flagTimer: 15, mineTimer: 14, volleyTimer: 0,
     shake: 0, pairSeq: 0,
   });
   refreshWeaponHud();
