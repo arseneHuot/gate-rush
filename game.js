@@ -13,23 +13,24 @@ const KILL_Z = 14;
 
 // ---------- Difficulté : montée progressive, mur vers 2-3 minutes ----------
 const scrollSpeed = t => 24 + Math.min(46, t * 0.3);    // vitesse d'approche du décor
-const unitHp      = t => 2 + Math.pow(t, 1.5) / 10.5;
+const unitHp      = t => 2 + Math.pow(t, 1.5) / 9;
 const enemyIv     = t => Math.max(0.28, 1.5 - t * 0.009);
 const gateIv      = t => Math.max(2.2, 3.6 - t * 0.022);
-const baseDPS     = c => 6 + c * 2.4;
+const baseDPS     = c => 6 + c * 2.8;
 
 // ---------- Armes ----------
 // bsp : vitesse projectile · aoe : {r: rayon, f: fraction des dégâts en zone}
 // streamsMax : nb max de tirs simultanés · flash : couleur de la gerbe de bouche
+// range : portée de tir en unités monde (la zone d'engagement, finie !)
 const TIERS = [
-  { name: "FUSIL",   dmgMul: 1,   rate: 8,  bullet: 0, bsp: 95,  streamsMax: 8, flash: 0xffd84d },
-  { name: "MINIGUN", dmgMul: 1.5, rate: 13, bullet: 1, bsp: 105, streamsMax: 8, flash: 0xff9d2e },
-  { name: "BAZOOKA", dmgMul: 2.1, rate: 3,  bullet: 2, bsp: 55,  streamsMax: 2, flash: 0xff7a2e, aoe: { r: 3.6, f: 1 }, homing: true },
-  { name: "LASER",   dmgMul: 3,   rate: 16, bullet: 3, bsp: 150, streamsMax: 6, flash: 0xff2e4d },
-  { name: "PLASMA",  dmgMul: 4.2, rate: 10, bullet: 4, bsp: 80,  streamsMax: 5, flash: 0x4dff7a, aoe: { r: 2.4, f: 0.5 } },
-  { name: "RAILGUN", dmgMul: 5,   rate: 4,  bullet: 6, bsp: 220, streamsMax: 3, flash: 0x9fd9ff, pierce: 6 },
-  { name: "TANK",    dmgMul: 6,   rate: 6,  bullet: 5, bsp: 115, streamsMax: 4, flash: 0xffd84d, aoe: { r: 3, f: 0.8 }, tank: true },
-  { name: "AVIONS",  dmgMul: 9,   rate: 14, bullet: 7, bsp: 160, streamsMax: 6, flash: 0x6fd9ff, aoe: { r: 2, f: 0.4 }, jet: true },
+  { name: "FUSIL",   dmgMul: 1,   rate: 8,  bullet: 0, bsp: 95,  range: 55,  streamsMax: 8, flash: 0xffd84d },
+  { name: "MINIGUN", dmgMul: 1.5, rate: 13, bullet: 1, bsp: 105, range: 50,  streamsMax: 8, flash: 0xff9d2e },
+  { name: "BAZOOKA", dmgMul: 2.1, rate: 3,  bullet: 2, bsp: 55,  range: 80,  streamsMax: 2, flash: 0xff7a2e, aoe: { r: 3.6, f: 1 }, homing: true },
+  { name: "LASER",   dmgMul: 3,   rate: 16, bullet: 3, bsp: 150, range: 90,  streamsMax: 6, flash: 0xff2e4d },
+  { name: "PLASMA",  dmgMul: 4.2, rate: 10, bullet: 4, bsp: 80,  range: 65,  streamsMax: 5, flash: 0x4dff7a, aoe: { r: 2.4, f: 0.5 } },
+  { name: "RAILGUN", dmgMul: 5,   rate: 4,  bullet: 6, bsp: 220, range: 115, streamsMax: 3, flash: 0x9fd9ff, pierce: 6 },
+  { name: "TANK",    dmgMul: 6,   rate: 6,  bullet: 5, bsp: 115, range: 85,  streamsMax: 4, flash: 0xffd84d, aoe: { r: 3, f: 0.8 }, tank: true },
+  { name: "AVIONS",  dmgMul: 9,   rate: 14, bullet: 7, bsp: 160, range: 75,  streamsMax: 6, flash: 0x6fd9ff, aoe: { r: 2, f: 0.4 }, jet: true },
 ];
 // Les avions de chasse ne se débloquent qu'après 3000 m
 const maxTierNow = () => G.meters >= 3000 ? TIERS.length - 1 : TIERS.length - 2;
@@ -1070,7 +1071,9 @@ function update(dt) {
       }
     }
     b.z -= (W.bsp + scroll) * dt;
-    let dead = b.z < SPAWN_Z;
+    // Portée finie : au-delà, le projectile s'éteint (les armes à zone explosent)
+    let dead = b.z < SQUAD_Z - W.range;
+    if (dead && W.aoe) blast(b.x, b.z, b.dmg * W.aoe.f, W.aoe.r);
 
     // Traînée de flammes des missiles
     if (W.name === "BAZOOKA" && G.parts.length < 280) {
