@@ -13,8 +13,8 @@ const KILL_Z = 14;
 
 // ---------- Difficulté (relevée : le mur arrive vite) ----------
 const scrollSpeed = t => 24 + t * 0.45;                 // vitesse d'approche du décor
-const unitHp      = t => 2 + Math.pow(t, 1.6) / 5.5;
-const enemyIv     = t => Math.max(0.4, 1.6 - t * 0.028);
+const unitHp      = t => 2 + Math.pow(t, 1.62) / 4.2;
+const enemyIv     = t => Math.max(0.3, 1.5 - t * 0.035);
 const gateIv      = t => Math.max(2.2, 3.6 - t * 0.022);
 const baseDPS     = c => 6 + c * 2.4;
 
@@ -24,9 +24,10 @@ const baseDPS     = c => 6 + c * 2.4;
 const TIERS = [
   { name: "FUSIL",   dmgMul: 1,   rate: 8,  bullet: 0, bsp: 95,  streamsMax: 8, flash: 0xffd84d },
   { name: "MINIGUN", dmgMul: 1.5, rate: 13, bullet: 1, bsp: 105, streamsMax: 8, flash: 0xff9d2e },
-  { name: "BAZOOKA", dmgMul: 2.1, rate: 3,  bullet: 2, bsp: 55,  streamsMax: 2, flash: 0xff7a2e, aoe: { r: 3.6, f: 1 } },
+  { name: "BAZOOKA", dmgMul: 2.1, rate: 3,  bullet: 2, bsp: 55,  streamsMax: 2, flash: 0xff7a2e, aoe: { r: 3.6, f: 1 }, homing: true },
   { name: "LASER",   dmgMul: 3,   rate: 16, bullet: 3, bsp: 150, streamsMax: 6, flash: 0xff2e4d },
   { name: "PLASMA",  dmgMul: 4.2, rate: 10, bullet: 4, bsp: 80,  streamsMax: 5, flash: 0x4dff7a, aoe: { r: 2.4, f: 0.5 } },
+  { name: "TANK",    dmgMul: 6,   rate: 6,  bullet: 5, bsp: 115, streamsMax: 4, flash: 0xffd84d, aoe: { r: 3, f: 0.8 }, tank: true },
 ];
 
 // ---------- Scène ----------
@@ -407,8 +408,21 @@ const vcMat = () => new THREE.MeshLambertMaterial({ vertexColors: true });
 
 // Squad bleue (veste bleu vif, gilet kaki, casquette bleue — comme la vidéo)
 const ALLY_STYLE = { cloth: 0x2e8de0, vest: 0x8a7a55, cap: 0x1f6fd0 };
-const allyMeshes = TIERS.map((t, i) => makeInstanced(
+const allyMeshes = TIERS.map((t, i) => t.tank ? null : makeInstanced(
   soldierGeo({ ...ALLY_STYLE, weapon: ["rifle", "minigun", "bazooka", "laser", "plasma"][i] }), vcMat(), 80));
+
+// Char d'assaut (palier ultime : la squad se transforme en tanks)
+const tankGeo = mergeGeometries([
+  part(BOX, 0x23303d, [0.62, 0.34, 0], [0, 0, 0], [0.34, 0.42, 1.7]),     // chenille D
+  part(BOX, 0x23303d, [-0.62, 0.34, 0], [0, 0, 0], [0.34, 0.42, 1.7]),    // chenille G
+  part(BOX, 0x2e5f9e, [0, 0.62, 0], [0, 0, 0], [1.1, 0.4, 1.6]),          // caisse
+  part(BOX, 0x3b82f6, [0, 0.62, -0.62], [0.18, 0, 0], [1, 0.34, 0.5]),    // glacis avant
+  part(CYL, 0x2e5f9e, [0, 0.95, 0.12], [0, 0, 0], [0.5, 0.3, 0.5]),       // tourelle
+  part(CYL, 0x1d3f7a, [0, 0.98, -0.75], [Math.PI / 2, 0, 0], [0.09, 1.3, 0.09]), // canon
+  part(CYL, 0x16305c, [0, 0.98, -1.36], [Math.PI / 2, 0, 0], [0.12, 0.18, 0.12]),// frein de bouche
+  part(BOX, 0x1d3f7a, [0.3, 1.12, 0.2], [0, 0, 0], [0.22, 0.1, 0.22]),    // écoutille
+]);
+const tankMesh = makeInstanced(tankGeo, vcMat(), 40);
 // Plastron d'armure (upgrade personnage, visible sur chaque soldat)
 const plateMesh = makeInstanced(
   part(BOX, 0xffffff, [0, 1.1, -0.26], [0.06, 0, 0], [0.5, 0.44, 0.08]), vcMat(), 80);
@@ -457,6 +471,8 @@ const bulletMeshes = [
   makeInstanced(new THREE.CapsuleGeometry(0.06, 2.2, 2, 6).rotateX(Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xff2e4d }), 400),
   // PLASMA : orbe verte (pulse au rendu)
   makeInstanced(new THREE.SphereGeometry(0.3, 8, 8), new THREE.MeshBasicMaterial({ color: 0x4dff7a }), 400),
+  // TANK : obus traçant épais
+  makeInstanced(new THREE.CapsuleGeometry(0.16, 0.8, 2, 6).rotateX(Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xffc24a }), 400),
 ];
 
 const partMesh = makeInstanced(
@@ -616,7 +632,7 @@ const G = {
   squadX: 0, targetX: 0, stepPhase: 0, moveAmt: 0, stepDir: 1,
   tier: 0, dmgMul: 1, rateMul: 1, armor: 0,
   gates: [], foes: [], bullets: [], parts: [], texts: [], crates: [], walls: [], pickups: [],
-  gateTimer: 1.4, foeTimer: 2.0, hordeTimer: 8, monsterTimer: 22, crateTimer: 5, wallTimer: 16, pickupTimer: 8, volleyTimer: 0,
+  gateTimer: 1.4, foeTimer: 2.0, hordeTimer: 8, monsterTimer: 22, crateTimer: 5, wallTimer: 16, pickupTimer: 6, volleyTimer: 0,
   shake: 0, pairSeq: 0,
 };
 const dpsNow = () => baseDPS(G.count) * TIERS[G.tier].dmgMul * G.dmgMul;
@@ -930,14 +946,14 @@ function update(dt) {
   }
   if (t > 10 && (G.hordeTimer -= dt) <= 0) {
     G.hordeTimer = Math.max(3.2, 7.5 - t * 0.05);
-    const k = 5 + Math.floor(t / 12);
+    const k = 5 + Math.floor(t / 10);
     for (let i = 0; i < k; i++)
       spawnFoe(Math.random() < 0.3 ? "runner" : "soldier",
         -LANE_HALF + 1.8 + (i + 0.5) * (LANE_HALF * 2 - 3.6) / k, SPAWN_Z - Math.random() * 6, 0.9);
   }
   // Événements monstres : meute de raptors, tricératops ou T-Rex boss
   if (t > 20 && (G.monsterTimer -= dt) <= 0) {
-    G.monsterTimer = Math.max(9, 15 - t * 0.04);
+    G.monsterTimer = Math.max(7, 14 - t * 0.05);
     const r = Math.random();
     if (r < 0.42) {
       const n = 2 + Math.floor(Math.random() * 2 + t / 35);
@@ -955,7 +971,7 @@ function update(dt) {
     if (Math.random() < 0.3) spawnCrate(randX(), "crate");
   }
   if (t > 16 && (G.wallTimer -= dt) <= 0) { G.wallTimer = 12 + Math.random() * 5; spawnWall(); }
-  if (G.tier < TIERS.length - 1 && (G.pickupTimer -= dt) <= 0) { G.pickupTimer = 9 + Math.random() * 4; spawnPickup(); }
+  if (G.tier < TIERS.length - 1 && (G.pickupTimer -= dt) <= 0) { G.pickupTimer = 6 + Math.random() * 2; spawnPickup(); }
 
   // Tir automatique
   if ((G.volleyTimer -= dt) <= 0) {
@@ -980,6 +996,19 @@ function update(dt) {
   for (let i = G.bullets.length - 1; i >= 0; i--) {
     const b = G.bullets[i];
     const W = TIERS[b.tier];
+    // Roquettes à tête chercheuse : elles courbent vers l'ennemi le plus proche devant
+    if (W.homing) {
+      let best = null, bd = 1e9;
+      for (const f of G.foes) {
+        if (f.z > b.z - 1) continue;
+        const d = Math.abs(f.x - b.x) + (b.z - f.z) * 0.25;
+        if (d < bd) { bd = d; best = f; }
+      }
+      if (best) {
+        const step = 30 * dt;
+        b.x += Math.max(-step, Math.min(step, best.x - b.x));
+      }
+    }
     b.z -= (W.bsp + scroll) * dt;
     let dead = b.z < SPAWN_Z;
 
@@ -1086,6 +1115,7 @@ function update(dt) {
       ftext(TIERS[G.tier].name + " !", "#ffd84d", true);
       burst(p.x, 1.6, p.z, 0xffe24a, 22, 12);
       sWeapon();
+      if (TIERS[G.tier].tank) { boom(); G.shake = 1.2; } // transformation en tanks !
       refreshWeaponHud();
       scene.remove(p.mesh);
       G.pickups.splice(i, 1);
@@ -1200,26 +1230,41 @@ function render(now) {
   barCursor = 0;
   _right.set(1, 0, 0).applyQuaternion(camera.quaternion);
 
-  // Squad
-  const visible = Math.min(G.count, 80);
-  for (let ti = 0; ti < allyMeshes.length; ti++) allyMeshes[ti].count = ti === G.tier ? visible : 0;
-  const am = allyMeshes[G.tier];
+  // Squad : soldats, ou chars d'assaut au palier TANK
+  const isTank = TIERS[G.tier].tank;
+  const visible = Math.min(G.count, isTank ? 40 : 80);
+  for (let ti = 0; ti < allyMeshes.length; ti++) if (allyMeshes[ti]) allyMeshes[ti].count = ti === G.tier ? visible : 0;
   const side = { amt: G.moveAmt || 0, lean: -(G.stepDir || 1) * 0.1 * (G.moveAmt || 0) };
-  for (let i = 0; i < visible; i++) {
-    const o = SLOTS[i];
-    placeHumanoid(am, i, G.squadX + o.x, SQUAD_Z + o.z, 1,
-      (G.stepPhase || 0) + i * 0.9, 0.08, LEG_ALLY, side);
-    if (G.armor > 0 && i < 80) {
-      dummy.position.set(G.squadX + o.x, 0, SQUAD_Z + o.z);
-      dummy.rotation.set(0.08, 0, 0);
+  if (isTank) {
+    for (let i = 0; i < visible; i++) {
+      const o = SLOTS[i];
+      dummy.position.set(G.squadX + o.x * 2, Math.abs(Math.sin(now * 0.004 + i)) * 0.05, SQUAD_Z + o.z * 2.1);
+      dummy.rotation.set(0, 0, side.lean * 0.6);
       dummy.scale.setScalar(1);
       dummy.updateMatrix();
-      plateMesh.setMatrixAt(i, dummy.matrix);
-      plateMesh.setColorAt(i, PLATE_COLORS[G.armor]);
+      tankMesh.setMatrixAt(i, dummy.matrix);
     }
+    tankMesh.count = visible;
+  } else {
+    const am = allyMeshes[G.tier];
+    for (let i = 0; i < visible; i++) {
+      const o = SLOTS[i];
+      placeHumanoid(am, i, G.squadX + o.x, SQUAD_Z + o.z, 1,
+        (G.stepPhase || 0) + i * 0.9, 0.08, LEG_ALLY, side);
+      if (G.armor > 0 && i < 80) {
+        dummy.position.set(G.squadX + o.x, 0, SQUAD_Z + o.z);
+        dummy.rotation.set(0.08, 0, 0);
+        dummy.scale.setScalar(1);
+        dummy.updateMatrix();
+        plateMesh.setMatrixAt(i, dummy.matrix);
+        plateMesh.setColorAt(i, PLATE_COLORS[G.armor]);
+      }
+    }
+    am.instanceMatrix.needsUpdate = true;
+    tankMesh.count = 0;
   }
-  am.instanceMatrix.needsUpdate = true;
-  plateMesh.count = G.armor > 0 ? visible : 0;
+  tankMesh.instanceMatrix.needsUpdate = true;
+  plateMesh.count = !isTank && G.armor > 0 ? visible : 0;
   plateMesh.instanceMatrix.needsUpdate = true;
   if (plateMesh.instanceColor) plateMesh.instanceColor.needsUpdate = true;
   if (G.state === "playing") updateBadge(G.count, G.squadX);
@@ -1314,7 +1359,7 @@ function reset() {
     t: 0, meters: 0, count: 5, kills: 0, maxCount: 5,
     squadX: 0, targetX: 0, stepPhase: 0, moveAmt: 0, stepDir: 1,
     tier: 0, dmgMul: 1, rateMul: 1, armor: 0,
-    gateTimer: 1.4, foeTimer: 2.0, hordeTimer: 8, monsterTimer: 22, crateTimer: 5, wallTimer: 16, pickupTimer: 8, volleyTimer: 0,
+    gateTimer: 1.4, foeTimer: 2.0, hordeTimer: 8, monsterTimer: 22, crateTimer: 5, wallTimer: 16, pickupTimer: 6, volleyTimer: 0,
     shake: 0, pairSeq: 0,
   });
   refreshWeaponHud();
