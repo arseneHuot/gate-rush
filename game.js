@@ -11,10 +11,10 @@ const SQUAD_Z = 0;
 const SPAWN_Z = -240;
 const KILL_Z = 14;
 
-// ---------- Difficulté (relevée : le mur arrive vite) ----------
-const scrollSpeed = t => 24 + t * 0.45;                 // vitesse d'approche du décor
-const unitHp      = t => 2 + Math.pow(t, 1.62) / 4.2;
-const enemyIv     = t => Math.max(0.3, 1.5 - t * 0.035);
+// ---------- Difficulté : montée progressive, mur vers 2-3 minutes ----------
+const scrollSpeed = t => 24 + Math.min(46, t * 0.3);    // vitesse d'approche du décor
+const unitHp      = t => 2 + Math.pow(t, 1.5) / 7;
+const enemyIv     = t => Math.max(0.3, 1.5 - t * 0.012);
 const gateIv      = t => Math.max(2.2, 3.6 - t * 0.022);
 const baseDPS     = c => 6 + c * 2.4;
 
@@ -757,7 +757,7 @@ function spawnFoe(type, x, z, hpMul = 1) {
   G.foes.push({
     type, x, z, hp, maxHp: hp,
     scale: T.scale,
-    sp: (2.2 + G.t * 0.04 + Math.random() * 1.2) * T.sp,
+    sp: (2.2 + G.t * 0.022 + Math.random() * 1.2) * T.sp,
     wob: Math.random() * 6.28,
     radius: T.radius,
     bite: 0,
@@ -939,21 +939,21 @@ function update(dt) {
   if ((G.foeTimer -= dt) <= 0) {
     G.foeTimer = enemyIv(t);
     const type = pickFoeType(t);
-    if (type === "soldier") spawnColumn("soldier", randX(), Math.min(10, 2 + Math.floor(t / 9)));
+    if (type === "soldier") spawnColumn("soldier", randX(), Math.min(10, 2 + Math.floor(t / 14)));
     else if (type === "runner") spawnColumn("runner", randX(), 1 + Math.floor(Math.random() * 3));
     else spawnFoe("brute", randX(), SPAWN_Z);
     if (t > 8 && Math.random() < 0.18) spawnCrate(randX(), "barrel");
   }
   if (t > 10 && (G.hordeTimer -= dt) <= 0) {
-    G.hordeTimer = Math.max(3.2, 7.5 - t * 0.05);
-    const k = 5 + Math.floor(t / 10);
+    G.hordeTimer = Math.max(3.2, 8 - t * 0.025);
+    const k = 4 + Math.floor(t / 22);
     for (let i = 0; i < k; i++)
       spawnFoe(Math.random() < 0.3 ? "runner" : "soldier",
         -LANE_HALF + 1.8 + (i + 0.5) * (LANE_HALF * 2 - 3.6) / k, SPAWN_Z - Math.random() * 6, 0.9);
   }
   // Événements monstres : meute de raptors, tricératops ou T-Rex boss
   if (t > 20 && (G.monsterTimer -= dt) <= 0) {
-    G.monsterTimer = Math.max(7, 14 - t * 0.05);
+    G.monsterTimer = Math.max(7, 15 - t * 0.03);
     const r = Math.random();
     if (r < 0.42) {
       const n = 2 + Math.floor(Math.random() * 2 + t / 35);
