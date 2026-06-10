@@ -798,7 +798,9 @@ function spawnGatePair(z = SPAWN_Z) {
 function spawnFoe(type, x, z, hpMul = 1) {
   if (G.foes.length > 130) return;
   const T = FOE_TYPES[type];
-  const hp = unitHp(G.t) * T.hpMul * hpMul;
+  // après 4000 m, les ennemis se blindent avec la distance : le mur final
+  const lateMul = 1 + Math.max(0, (G.meters - 4000) / 2500);
+  const hp = unitHp(G.t) * T.hpMul * hpMul * lateMul;
   G.foes.push({
     type, x, z, hp, maxHp: hp,
     scale: T.scale,
@@ -845,11 +847,11 @@ function spawnCrate(x, kind = "crate") {
   scene.add(c.mesh);
   G.crates.push(c);
 }
-function spawnWall() {
-  const side = Math.random() < 0.5 ? -1 : 1;
+function spawnWall(z = SPAWN_Z, forcedSide = null) {
+  const side = forcedSide ?? (Math.random() < 0.5 ? -1 : 1);
   const w = LANE_HALF - 0.4;
   const wl = {
-    x: side * LANE_HALF / 2, z: SPAWN_Z, w,
+    x: side * LANE_HALF / 2, z, w,
     hp: unitHp(G.t) * 8,
   };
   wl.maxHp = wl.hp;
@@ -1022,15 +1024,23 @@ function update(dt) {
     spawnCrate(randX(), "crate");
     if (Math.random() < 0.3) spawnCrate(randX(), "crate");
   }
-  if (t > 16 && (G.wallTimer -= dt) <= 0) { G.wallTimer = 12 + Math.random() * 5; spawnWall(); }
+  // Après 4000 m : zone piégée — barricades rapprochées, parfois en quinconce
+  const trapped = G.meters > 4000;
+  if (t > 16 && (G.wallTimer -= dt) <= 0) {
+    G.wallTimer = trapped ? 6 + Math.random() * 3 : 12 + Math.random() * 5;
+    const side = Math.random() < 0.5 ? -1 : 1;
+    spawnWall(SPAWN_Z, side);
+    if (trapped && Math.random() < 0.4) spawnWall(SPAWN_Z - 26, -side);
+  }
   // Une nouvelle arme tous les 800 m (spawn 150 m en avance pour arriver pile au palier ; réapparaît si ratée)
   if (G.tier < maxTierNow() && G.meters >= (G.tier + 1) * 800 - 150 && !G.pickups.some(p => p.kind === "weapon"))
     spawnPickup("weapon");
   if (t > 12 && (G.flagTimer -= dt) <= 0) { G.flagTimer = 13 + Math.random() * 6; spawnPickup("flag"); }
   if (t > 12 && (G.mineTimer -= dt) <= 0) {
-    G.mineTimer = Math.max(6, 11 - t * 0.02);
-    spawnCrate(randX(), "mine");
-    if (Math.random() < 0.4) spawnCrate(randX(), "mine");
+    G.mineTimer = (trapped ? 0.45 : 1) * Math.max(6, 11 - t * 0.02);
+    // après 4000 m : petits champs de mines
+    const n = trapped ? 2 + Math.floor(Math.random() * 2) : 1 + (Math.random() < 0.4 ? 1 : 0);
+    for (let i = 0; i < n; i++) spawnCrate(randX(), "mine");
   }
 
   // Tir automatique
@@ -1039,7 +1049,7 @@ function update(dt) {
     G.volleyTimer = 1 / volleyRate();
     const streams = Math.max(1, Math.min(W.streamsMax, Math.ceil(G.count / 4)));
     const dmg = dpsNow() / volleyRate() / streams;
-    const spread = Math.min(squadRadius(), 2.6);
+    const spread = Math.min(squadRadius(), 1.5); // nappe resserrée : il faut viser en se déplaçant
     const fy = W.jet ? 2.6 : 1.4;
     for (let i = 0; i < streams && G.bullets.length < 380; i++) {
       const fx = G.squadX + (streams === 1 ? 0 : (i / (streams - 1) - 0.5) * 2 * spread);
