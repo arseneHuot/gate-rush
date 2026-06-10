@@ -1072,8 +1072,11 @@ function update(dt) {
         G.foes.splice(i, 1);
         if (G.state !== "playing") return;
       }
-    } else if (f.z > KILL_Z) {
+    } else if (f.z > SQUAD_Z + 1.6) {
+      // Passé derrière sans être tué : il nous attaque dans le dos
+      hitSquad(T.loss(f.hp));
       G.foes.splice(i, 1);
+      if (G.state !== "playing") return;
     }
   }
 
