@@ -13,7 +13,7 @@ const LB = (() => {
     try { data = await r.json(); } catch { data = {}; }
     let scores = Array.isArray(data.scores) ? data.scores : [];
     // n'affiche jamais les scores implausibles injectés directement dans le stockage
-    scores = scores.filter(s => s && typeof s.s === "number" && s.s <= 15000);
+    scores = scores.filter(plausible);
     return { scores, played: data.played || scores.length };
   }
 
@@ -21,19 +21,18 @@ const LB = (() => {
     return String(name).replace(/[<>&"'\\]/g, "").trim().slice(0, 14) || "Anonyme";
   }
 
-  // Au-delà du plafond physiquement atteignable, c'est de la triche : on rejette
-  const MAX_PLAUSIBLE = 15000;
+  // Au-delà du plafond physiquement atteignable, c'est de la triche : on rejette.
+  // Les scores légitimes sont des entiers (Math.floor) — tout le reste est injecté.
+  const MAX_PLAUSIBLE = 12000;
+  const plausible = s => s && typeof s.n === "string" && s.n.length <= 20
+    && Number.isInteger(s.s) && s.s > 0 && s.s <= MAX_PLAUSIBLE;
 
   // Soumet un score ; renvoie { rank, total, top } (rank null si hors top 100).
   async function submit(name, score) {
     name = sanitize(name);
     score = Math.max(0, Math.floor(score));
     if (score > MAX_PLAUSIBLE) throw new Error("score implausible");
-    const { scores, played } = await fetchBoard();
-    // on ignore aussi les entrées implausibles que d'autres auraient injectées
-    const clean = scores.filter(s => s && typeof s.s === "number" && s.s <= MAX_PLAUSIBLE);
-    scores.length = 0;
-    scores.push(...clean);
+    const { scores, played } = await fetchBoard(); // fetchBoard filtre déjà les entrées injectées
 
     const entry = { n: name, s: score, d: new Date().toISOString().slice(0, 10) };
     scores.push(entry);
